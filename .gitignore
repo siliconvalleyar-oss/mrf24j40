@@ -1,0 +1,25 @@
+# Build directories
+obj/
+bin/
+
+# Compiled binaries (specific)
+mrf24_tx/bin/mrf24_transmitter
+mrf24_rx/bin/mrf24_receiver
+
+# Object and dependency files
+*.o
+*.d
+
+# Log files
+log/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

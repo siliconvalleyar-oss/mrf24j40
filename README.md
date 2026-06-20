@@ -1,36 +1,36 @@
 #version 1.4
-	-	niveles de seguridad 
+	-	niveles de seguridad
 	-	ruteo , mapa o recorrido del mensaje
-	-	capas 
+	-	capas
 	- 	modo sleep
 
 #version 1.3
 	- spi por BCM2835 , reever codigo implementado junto con gpio a bcm2835
-	
+
 #version 1.2
 	-	implementar ACK
 	-	implementar epapper
-	-	implementar envio y recepcion checkeo del envio de packetes 
+	-	implementar envio y recepcion checkeo del envio de packetes
 	-	utilizacion de seguridad encryptar de desencryptar
 	-	modo router , coordinador , end device
 	-	reduccion de tiempos para enviar y recibir paquetes
 	- 	REVISION de GPIOs configuracion y seteo del funcionamiento de las interrupciones
-	-	
-	
+	-
+
 #version 1.1
-	-	Envia datos correctamente 
+	-	Envia datos correctamente
 	-	envia header , size , buffer , checksum
-	-	Version exitosa 
+	-	Version exitosa
 
 
 #vesion 1.0.1
 
 Codigo c++ para raspberry pi y mrf24j40ma
-SPI config 
+SPI config
 
 gpio MOSI //master output , slave input
-gpio MISO //master input , slave output 
-gpio SCK // Clock 
+gpio MISO //master input , slave output
+gpio SCK // Clock
 gpio CS //Chip Select
 gpio WAKE //Wake
 gpio INT //Interrupt
@@ -75,5 +75,3 @@ create comunication secure
 		ssh-keygen -t rsa
 		ssh-copy-id root@127.0.0.1
 		cat ~/.ssh/id_rsa.pub | ssh root@127.0.0.1 'cat >> ~/.ssh/authorized_keys'
-
-
