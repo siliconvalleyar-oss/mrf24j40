@@ -67,7 +67,7 @@ sudo apt-get install zlib1g-dev -y
 
 comunication
 
-		ssh-keygen -R raspberry.local
+		ssh-keygen -R localhost
 
 
 create comunication secure
