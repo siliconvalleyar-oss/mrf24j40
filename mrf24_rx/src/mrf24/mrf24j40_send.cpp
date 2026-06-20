@@ -1,3 +1,12 @@
+/**
+ * @file    mrf24j40_send.cpp
+ * @brief   Implementación de los métodos de envío del driver MRF24J40
+ * @details Proporciona las funciones send() y send64() para transmitir
+ *          tramas IEEE 802.15.4 a través del TX Normal FIFO del MRF24J40.
+ *          Soporta direcciones de 64 bits con y sin estructura packet_tx.
+ *
+ * @namespace MRF24J40
+ */
 
 #include <mrf24/mrf24j40_cmd.hpp>
 #include <mrf24/mrf24j40_settings.hpp>
@@ -7,155 +16,154 @@
 #include <work/data_analisis.hpp>
 #include <spi/spi.hpp>
 
+namespace MRF24J40 {
 
-
-namespace MRF24J40{
+/** @brief Referencia externa a la variable ignoreBytes */
 extern size_t ignoreBytes;
 
-    void 
-    Mrf24j::send(const uint64_t mac_address_dest, const std::vector<uint8_t> vect) 
-    {
-        const auto size = vect.size();
-        int incr = 0;
-        write_long(++incr, m_bytes_MHR); // header length
-        // +ignoreBytes is because some module seems to ignore 2 bytes after the header?!.
-        // default: ignoreBytes = 0;
-        //m_bytes_MHR 9 + 2 + 2 
-        //size  = 16
-        //ignoreBytes =2 
+// ============================================================================
+// send() — Envío genérico con vector de bytes
+// ============================================================================
 
-        write_long(++incr,  m_bytes_MHR + ignoreBytes + size);//
+void Mrf24j::send(const uint64_t mac_address_dest, const std::vector<uint8_t> vect)
+{
+    /**
+     * @brief Envía datos a una dirección de 64 bits
+     *
+     * Construye una trama IEEE 802.15.4 en el TX Normal FIFO con:
+     * - MAC Header (MHR): FCF(2) + Seq(1) + PAN(2) + Dst(8) + Src(8)
+     * - Payload: datos del vector
+     * Solicita ACK (TXNACKREQ) y dispara transmisión (TXNTRIG).
+     *
+     * @param mac_address_dest Dirección MAC destino de 64 bits
+     * @param vect             Vector con los datos a transmitir
+     */
+    const auto size = vect.size();
+    int incr = 0;
 
-        // 0 | pan compression | ack | no security | no data pending | data frame[3 bits]
-        write_long(++incr, 0b01100001); // first byte of Frame Control
-        
-        // 16 bit source, 802.15.4 (2003), 16 bit dest,
-        write_long(++incr, 0b10001000); // second byte of frame control
-        write_long(++incr, 1);  // sequence number 1
+    // Header length
+    write_long(++incr, m_bytes_MHR);
+    // Frame length (header + ignoreBytes + payload)
+    write_long(++incr, m_bytes_MHR + ignoreBytes + size);
 
-        const uint16_t panid = get_pan();
-        #ifdef DBG_MRF
-            printf("\npanid : 0x%X\n",panid);
-        #endif
+    // Frame Control Field: data frame, ACK request, PAN compression
+    write_long(++incr, 0b01100001);
+    // Frame Control Field: 16-bit src/dst, 802.15.4-2003
+    write_long(++incr, 0b10001000);
+    // Sequence number
+    write_long(++incr, 1);
 
-        
-        
-        write_long(++incr, panid & 0xff);  // dest panid
-        write_long(++incr, panid >> 8);
+    // Dest PAN ID
+    const uint16_t panid = get_pan();
+    write_long(++incr, panid & 0xff);
+    write_long(++incr, panid >> 8);
 
-        set_macaddress(incr, mac_address_dest );
-        set_macaddress(incr, address64_read() );
-  
-        // All testing seems to indicate that the next two bytes are ignored.        
-        //2 bytes on FCS appended by TXMAC
-         incr+=ignoreBytes;
+    // Dest and source MAC addresses
+    set_macaddress(incr, mac_address_dest);
+    set_macaddress(incr, address64_read());
 
-        for(const auto& byte : vect) write_long(++incr,byte);
-        
-        // ack on, and go!
-        write_short(MRF_TXNCON, (1<<MRF_TXNACKREQ | 1<<MRF_TXNTRIG));
-        mode_turbo();
-    }
+    // Ignore bytes (comportamiento de algunos módulos)
+    incr += ignoreBytes;
 
-    void 
-    Mrf24j::send64(const uint64_t dest64, const DATA::packet_tx packet_tx) {
-        //const uint8_t len = strlen(packet_tx.data); // get the length of the char* array
-        //const uint8_t len = strlen(packet_tx); // get the length of the char* array
-        const size_t len =sizeof(packet_tx);// const uint8_t len =sizeof(packet_tx.data);
-        int i = 0;
-        write_long(i++, m_bytes_MHR); // header length
+    // Payload
+    for (const auto& byte : vect)
+        write_long(++incr, byte);
 
-        // +ignoreBytes is because some module seems to ignore 2 bytes after the header?!.
-        // default: ignoreBytes = 0;
-        write_long(i++, m_bytes_MHR+ignoreBytes+len);//9 + 2 + tamaño del paquete
-
-        // 0 | pan compression | ack | no security | no data pending | data frame[3 bits]
-        write_long(i++, 0b01100001); // first byte of Frame Control
-        // 16 bit source, 802.15.4 (2003), 16 bit dest,
-        write_long(i++, 0b10001000); // second byte of frame control
-        write_long(i++, 1);  // sequence number 1
-
-        const uint16_t panid = get_pan();
-        #ifdef DBG
-            printf("\npanid: 0x%X\n",panid);
-        #endif
-        write_long(i++, panid >> 8);
-        write_long(i++, panid & 0xff);  // dest panid
-        
-        //direccion de destino a enviar el mensaje
-        set_macaddress(i, dest64 );
-
-        //lee la direccion mac de 64 bits obtenida
-
-        set_macaddress(i, address64_read() );
-
-        #include <mrf24/mrf24j40._microchip.hpp>
-        write_long(RFCTRL2,0x80);// que hace ?
-
-        // All testing seems to indicate that the next two bytes are ignored.
-        //2 bytes on FCS appended by TXMAC
-        
-        i+=ignoreBytes;//ignora 2 bytes
-
-        //genera un paquete
-        std::vector<uint8_t> vect(sizeof(packet_tx));
-        std::memcpy(vect.data(), &packet_tx, sizeof(packet_tx)); // Copiar los datos de la estructura al vector
-
-        for(const auto& byte : vect)write_long(i++,byte);
-        // ack on, and go!
-        write_short(MRF_TXNCON, (1<<MRF_TXNACKREQ | 1<<MRF_TXNTRIG));        
-        mode_turbo();
-    }
-   
-
-    void 
-    Mrf24j::send64(const uint64_t dest64 ,const std::vector<uint8_t> vect) {                
-        const auto len =vect.size();// const uint8_t len =sizeof(packet_tx.data);
-        int i = 0;
-        write_long(i++, m_bytes_MHR); // header length
-
-        // +ignoreBytes is because some module seems to ignore 2 bytes after the header?!.
-        // default: ignoreBytes = 2;
-        // m_bytes_MHR 23
-        // len packet = 69
-        write_long(i++, m_bytes_MHR + ignoreBytes + len);//9 + 2 + tamaño del paquete
-
-        // 0 | pan compression | ack | no security | no data pending | data frame[3 bits]
-        write_long(i++, 0b01100001); // first byte of Frame Control
-        // 16 bit source, 802.15.4 (2003), 16 bit dest,
-        write_long(i++, 0b10001000); // second byte of frame control
-        write_long(i++, 1);  // sequence number 1
-
-        const uint16_t panid = get_pan();
-        #ifdef DBG
-            printf("\npanid: 0x%X\n",panid);
-        #endif
-        
-        //send PANID
-        write_long(i++, panid & 0xff);  // dest panid
-        write_long(i++, panid >> 8);
-
-        //direccion de destino a enviar el mensaje
-        set_macaddress(i, dest64 );
-
-        //lee la direccion mac de 64 bits obtenida
-
-        set_macaddress(i, address64_read() );
-
-        #include <mrf24/mrf24j40._microchip.hpp>
-        write_long(RFCTRL2,0x80);// que hace ?
-
-        // All testing seems to indicate that the next two bytes are ignored.
-        //2 bytes on FCS appended by TXMAC
-        
-        i+=ignoreBytes;//ignora 2 bytes
-
-        //genera un paquete
-
-        for(const auto& byte : vect)write_long(i++,byte);
-        // ack on, and go!
-        write_short(MRF_TXNCON, (1<<MRF_TXNACKREQ | 1<<MRF_TXNTRIG));        
-        mode_turbo();
-    }
- 
+    // Disparar transmisión con ACK
+    write_short(MRF_TXNCON, (1 << MRF_TXNACKREQ | 1 << MRF_TXNTRIG));
+    mode_turbo();
 }
+
+// ============================================================================
+// send64() — Envío con estructura packet_tx
+// ============================================================================
+
+void Mrf24j::send64(const uint64_t dest64, const DATA::packet_tx packet_tx)
+{
+    /**
+     * @brief Envía un paquete estructurado packet_tx a dirección de 64 bits
+     *
+     * Similar a send() pero el payload se toma de una estructura
+     * DATA::packet_tx que contiene head, size, data[] y checksum.
+     *
+     * @param dest64    Dirección MAC destino de 64 bits
+     * @param packet_tx Estructura con los datos del paquete
+     */
+    const size_t len = sizeof(packet_tx);
+    int i = 0;
+
+    write_long(i++, m_bytes_MHR);
+    write_long(i++, m_bytes_MHR + ignoreBytes + len);
+
+    write_long(i++, 0b01100001);
+    write_long(i++, 0b10001000);
+    write_long(i++, 1);
+
+    const uint16_t panid = get_pan();
+    write_long(i++, panid >> 8);
+    write_long(i++, panid & 0xff);
+
+    set_macaddress(i, dest64);
+    set_macaddress(i, address64_read());
+
+    #include <mrf24/mrf24j40._microchip.hpp>
+    write_long(RFCTRL2, 0x80);
+
+    i += ignoreBytes;
+
+    // Copiar estructura packet_tx a vector y escribir en FIFO
+    std::vector<uint8_t> vect(sizeof(packet_tx));
+    std::memcpy(vect.data(), &packet_tx, sizeof(packet_tx));
+
+    for (const auto& byte : vect)
+        write_long(i++, byte);
+
+    write_short(MRF_TXNCON, (1 << MRF_TXNACKREQ | 1 << MRF_TXNTRIG));
+    mode_turbo();
+}
+
+// ============================================================================
+// send64() — Envío con vector (sobrecarga)
+// ============================================================================
+
+void Mrf24j::send64(const uint64_t dest64, const std::vector<uint8_t> vect)
+{
+    /**
+     * @brief Envía un vector de datos a dirección de 64 bits
+     *
+     * Sobrecarga de send64() que toma directamente un vector<uint8_t>
+     * como payload, sin estructura intermedia.
+     *
+     * @param dest64 Dirección MAC destino de 64 bits
+     * @param vect   Vector con los datos a transmitir
+     */
+    const auto len = vect.size();
+    int i = 0;
+
+    write_long(i++, m_bytes_MHR);
+    write_long(i++, m_bytes_MHR + ignoreBytes + len);
+
+    write_long(i++, 0b01100001);
+    write_long(i++, 0b10001000);
+    write_long(i++, 1);
+
+    const uint16_t panid = get_pan();
+    write_long(i++, panid & 0xff);
+    write_long(i++, panid >> 8);
+
+    set_macaddress(i, dest64);
+    set_macaddress(i, address64_read());
+
+    #include <mrf24/mrf24j40._microchip.hpp>
+    write_long(RFCTRL2, 0x80);
+
+    i += ignoreBytes;
+
+    for (const auto& byte : vect)
+        write_long(i++, byte);
+
+    write_short(MRF_TXNCON, (1 << MRF_TXNACKREQ | 1 << MRF_TXNTRIG));
+    mode_turbo();
+}
+
+} // namespace MRF24J40

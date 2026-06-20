@@ -1,3 +1,12 @@
+/**
+ * @file    run.cpp
+ * @brief   Punto de entrada del bucle de ejecución de la radio
+ * @details Proporciona la clase Run_t que inicia el procesamiento
+ *          principal de la radio MRF24J40, creando una instancia
+ *          de Radio_t y ejecutando su bucle en el contexto principal.
+ *
+ * @namespace RUN
+ */
 
 #include <radio/run.hpp>
 #include <radio/radio.hpp>
@@ -7,45 +16,46 @@
 #include <thread>
 #include <vector>
 
-//#if (defined(__SIZEOF_POINTER__) && (__SIZEOF_POINTER__ == 4))
-
- 
-namespace MRF24J40{
+// Variable externa para acceso al último mensaje recibido
+namespace MRF24J40 {
     extern std::string msj_txt;
 }
 
-namespace RUN{
-    //extern MRF24J40::Mrf24j_t mrf24j40_spi ;    
-    
+namespace RUN {
+
 void Run_t::start()
 {
-        [[gnu::unused]]  bool flag{true};
-        system("clear"); 
-    
-    try{
-            auto zigbee { std::make_unique<MRF24J40::Radio_t>()};        // Inicializar hilos y ejecutar las clases en paralelo                 
-            //std::thread thread2(&DEVICES::Msj_t::Start, msj.get());
-            //Esperar a que todos los hilos terminen
-                                         
-            //std::thread thread1([zigbee = std::move(zigbee)]() {});            
-            //thread1.join();
-            //thread2.join();                        
+    /**
+     * @brief Inicia el bucle de procesamiento de la radio
+     *
+     * Crea una instancia de MRF24J40::Radio_t y ejecuta su bucle
+     * principal. En modo RX (USE_MRF24_RX), el bucle es infinito
+     * procesando paquetes entrantes. En modo TX, ejecuta ciclos
+     * de transmisión periódica.
+     *
+     * @note Requiere permisos de root para acceso a SPI y GPIO.
+     * @throws Captura excepciones genéricas mostrando "error :("
+     */
+    [[gnu::unused]] bool flag{true};
+    system("clear");
+
+    try {
+        auto zigbee{std::make_unique<MRF24J40::Radio_t>()};
+
         #ifdef USE_MRF24_RX
-            while(true)        
-        #endif  
-        #ifdef USE_MRF24_TX
-            //flag = zigbee->Run();
-        #endif  
-            {                                
-                flag = zigbee->Run();     
-                #ifdef USE_MRF24_RX
-                if(flag == true){                                                        
+            while (true)
+        #endif
+        {
+            flag = zigbee->Run();
+            #ifdef USE_MRF24_RX
+                if (flag == true) {
+                    // Flag activo: hay datos disponibles
                 }
-                #endif                                
-            }                
-        }//end try
-        catch(...){
-                    std::cerr<<"\nerror :(\n";
+            #endif
         }
+    } catch (...) {
+        std::cerr << "\nerror :(\n";
     }
 }
+
+} // namespace RUN
