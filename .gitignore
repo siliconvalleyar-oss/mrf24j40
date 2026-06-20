@@ -20,6 +20,16 @@ log/
 *.swo
 *~
 
+# Backup / temp files
+*.bak.*
+*~
+
+# Test files (not part of main project)
+**/test_*.c
+**/font5x7.cpp
+**/oled.cpp
+**/oled.hpp
+
 # OS files
 .DS_Store
 Thumbs.db
