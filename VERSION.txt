@@ -1,0 +1,16 @@
+MRF24J40 - Transmisor/Receptor ZigBee para Raspberry Pi
+=======================================================
+
+Versión: 2.0.1
+Tag:     v2.0.1
+
+Historial de versiones:
+  v2.0.1  - Guardas #ifdef ENABLE_DATABASE en database.hpp, radio.hpp y database.cpp
+  v2.0.0  - Makefiles reorganizados, documentación Doxygen completa,
+            comentarios profesionales en .hpp y .cpp
+  v1.4    - Proyecto MRF24J40: transmisor/receptor con scripts_tools
+            reorganizados, documentación completa y TODO.md
+  v1.3    - SPI por BCM2835
+  v1.2    - ACK, epaper, seguridad, modo router/coordinador/end device
+  v1.1    - Envío correcto de datos con header, size, buffer, checksum
+  v1.0.1  - Versión inicial del código C++ para Raspberry Pi y MRF24J40MA
