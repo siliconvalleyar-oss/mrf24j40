@@ -4,12 +4,14 @@
 #include <config/config.hpp>
 #include <radio/data.hpp>
 
+#ifdef ENABLE_DATABASE
 #include <mysql_driver.h>
 #include <mysql_connection.h>
 #include <cppconn/driver.h>
 #include <cppconn/exception.h>
 #include <cppconn/resultset.h>
 #include <cppconn/statement.h>
+#endif
 
 #include <iostream>
 #include <memory>

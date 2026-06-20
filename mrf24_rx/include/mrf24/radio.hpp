@@ -9,12 +9,14 @@
 #include <work/data_analisis.hpp>
 #include <qr/qr.hpp>
 
+#ifdef ENABLE_DATABASE
 #include <mysql_driver.h>
 #include <mysql_connection.h>
 #include <cppconn/driver.h>
 #include <cppconn/exception.h>
 #include <cppconn/resultset.h>
 #include <cppconn/statement.h>
+#endif
 #include <vector>
 #include <sstream>  // Para std::ostringstream
 #include <iomanip>  // Para std::hex y std::setfill

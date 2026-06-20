@@ -5,6 +5,8 @@
 
 namespace DATABASE{
 
+#ifdef ENABLE_DATABASE
+
     void 
     Database_t::fetchData(int idToRetrieve) {
         try {
@@ -76,6 +78,19 @@ namespace DATABASE{
 
     return ;
     }
+
+#else
+
+    void Database_t::fetchData(int /*idToRetrieve*/) {
+        // ENABLE_DATABASE no está definido: MySQL no disponible
+    }
+
+    void Database_t::init() {
+        // ENABLE_DATABASE no está definido: MySQL no disponible
+    }
+
+#endif
+
 }
 
 

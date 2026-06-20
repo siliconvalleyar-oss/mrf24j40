@@ -3,12 +3,14 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#ifdef ENABLE_DATABASE
 #include <mysql_driver.h>
 #include <mysql_connection.h>
 #include <cppconn/driver.h>
 #include <cppconn/exception.h>
 #include <cppconn/resultset.h>
 #include <cppconn/statement.h>
+#endif
 
 
 #define ID_SEARCH 64
