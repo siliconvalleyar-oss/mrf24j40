@@ -1,29 +1,157 @@
-CXX      = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -I./src -pthread
-LDFLAGS  = -pthread -lbcm2835 -lbcm2835
+# =============================================================================
+# Makefile — MRF24J40 Transmisor (mrf24_tx)
+# =============================================================================
+# Compilador y flags base
+CXX       := g++
+CXXFLAGS  := -std=c++17 -Wall -Wextra -O2 -pthread
+LDFLAGS   := -pthread
 
-SRCS    = src/main.cpp src/mrf24j40.cpp src/oled.cpp src/font5x7.cpp
-OBJS    = $(patsubst src/%.cpp, obj/%.o, $(SRCS))
-TARGET  = bin/mrf24_transmitter
+# Directorios
+SRC_DIR   := src
+OBJ_DIR   := obj
+BIN_DIR   := bin
+INC_DIRS  := src include
+INC_FLAGS := $(addprefix -I, $(INC_DIRS))
 
-.PHONY: all clean
+# -----------------------------------------------------------
+# Detección de arquitectura
+# -----------------------------------------------------------
+ARCH := $(shell uname -m)
+$(info [BUILD] Arquitectura detectada: $(ARCH))
 
-all: obj bin $(TARGET)
+# -----------------------------------------------------------
+# Librerías base
+# -----------------------------------------------------------
+LIBS :=
+
+# BCM2835 (esencial para GPIO/SPI/I2C)
+BCM2835_LIB := $(shell pkg-config --libs bcm2835 2>/dev/null || echo "-lbcm2835")
+LIBS += $(BCM2835_LIB)
+
+# -----------------------------------------------------------
+# Librerías opcionales (se detectan automáticamente)
+# -----------------------------------------------------------
+
+# MySQL Connector/C++
+MYSQL_AVAILABLE := $(shell pkg-config --exists mysqlcppconn 2>/dev/null && echo "yes" || echo "no")
+ifeq ($(MYSQL_AVAILABLE),yes)
+    $(info [BUILD] MySQL Connector detectado)
+    LIBS += -lmysqlcppconn
+    CXXFLAGS += -DENABLE_DATABASE
+else
+    $(info [BUILD] MySQL Connector NO detectado — funcionalidad de BD deshabilitada)
+endif
+
+# libqrencode (QR)
+QR_AVAILABLE := $(shell pkg-config --exists libqrencode 2>/dev/null && echo "yes" || echo "no")
+ifeq ($(QR_AVAILABLE),yes)
+    $(info [BUILD] libqrencode detectado)
+    LIBS += -lqrencode
+    CXXFLAGS += -DUSE_QR
+else
+    $(info [BUILD] libqrencode NO detectado — generación de QR deshabilitada)
+endif
+
+# libpng
+PNG_AVAILABLE := $(shell pkg-config --exists libpng 2>/dev/null && echo "yes" || echo "no")
+ifeq ($(PNG_AVAILABLE),yes)
+    $(info [BUILD] libpng detectado)
+    LIBS += -lpng
+else
+    $(info [BUILD] libpng NO detectado)
+endif
+
+# zlib
+Z_AVAILABLE := $(shell pkg-config --exists zlib 2>/dev/null && echo "yes" || echo "no")
+ifeq ($(Z_AVAILABLE),yes)
+    $(info [BUILD] zlib detectado)
+    LIBS += -lz
+else
+    $(info [BUILD] zlib NO detectado)
+endif
+
+# -----------------------------------------------------------
+# Fuentes: todos los .cpp del proyecto
+# -----------------------------------------------------------
+SRCS := \
+    $(SRC_DIR)/main.cpp \
+    $(SRC_DIR)/mrf24j40.cpp \
+    $(SRC_DIR)/oled.cpp \
+    $(SRC_DIR)/font5x7.cpp \
+    $(SRC_DIR)/config/config.cpp \
+    $(SRC_DIR)/spi/spi.cpp \
+    $(SRC_DIR)/spi/spi_dbg.cpp \
+    $(SRC_DIR)/gpio/gpio.cpp \
+    $(SRC_DIR)/radio/radio.cpp \
+    $(SRC_DIR)/radio/run.cpp \
+    $(SRC_DIR)/mrf24/mrf24j40.cpp \
+    $(SRC_DIR)/mrf24/mrf24j40_send.cpp \
+    $(SRC_DIR)/mrf24/mrf24j40_template.cpp \
+    $(SRC_DIR)/mrf24/radio_trasnreceiver.cpp \
+    $(SRC_DIR)/mrf24/radio.cpp \
+    $(SRC_DIR)/mrf24/zigbee_packet_handler.cpp \
+    $(SRC_DIR)/file/file.cpp \
+    $(SRC_DIR)/file/database.cpp \
+    $(SRC_DIR)/qr/qr.cpp \
+    $(SRC_DIR)/qr/qr_img.cpp \
+    $(SRC_DIR)/qr/ff.cpp \
+    $(SRC_DIR)/tyme/tyme.cpp \
+    $(SRC_DIR)/security/encrypt.cpp \
+    $(SRC_DIR)/security/decrypt.cpp \
+    $(SRC_DIR)/interrupt/interrupt.cpp \
+    $(SRC_DIR)/work/rfflush.cpp \
+    $(SRC_DIR)/display/epaper.cpp \
+    $(SRC_DIR)/oled/oled/SSD1306_OLED.cpp \
+    $(SRC_DIR)/oled/oled/SSD1306_OLED_graphics.cpp \
+    $(SRC_DIR)/oled/oled/SSD1306_OLED_Print.cpp \
+    $(SRC_DIR)/oled/oled/SSD1306_OLED_font.cpp \
+    $(SRC_DIR)/oled/oled/oled.cpp
+
+OBJS := $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRCS))
+DEPS := $(OBJS:.o=.d)
+
+# Nombre del binario de salida
+TARGET := $(BIN_DIR)/mrf24_transmitter
+
+# -----------------------------------------------------------
+# Reglas
+# -----------------------------------------------------------
+.PHONY: all directories clean info
+
+all: directories $(TARGET)
 	@echo ""
-	@echo "  Compilación exitosa: $(TARGET)"
-	@echo "  Ejecutar con: sudo ./$(TARGET)"
+	@echo "  ╔══════════════════════════════════════════╗"
+	@echo "  ║  MRF24J40 TRANSMISOR — COMPILACIÓN OK   ║"
+	@echo "  ║  Ejecutar: sudo ./$(TARGET)              ║"
+	@echo "  ╚══════════════════════════════════════════╝"
 
+# Directorios de salida
+directories:
+	@mkdir -p $(OBJ_DIR) $(BIN_DIR)
+	@mkdir -p $(sort $(dir $(OBJS)))
+
+# Linkeo final
 $(TARGET): $(OBJS)
-	$(CXX) -o $@ $^ $(LDFLAGS)
+	$(CXX) -o $@ $^ $(LDFLAGS) $(LIBS)
+	@echo "  → Binario: $@"
 
-obj/%.o: src/%.cpp src/mrf24j40.h
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+# Compilación de objetos
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
+	$(CXX) $(CXXFLAGS) $(INC_FLAGS) -MMD -MP -c $< -o $@
 
-obj:
-	mkdir -p obj
+# Incluir dependencias automáticas
+-include $(DEPS)
 
-bin:
-	mkdir -p bin
-
+# Limpieza
 clean:
-	rm -rf obj bin
+	@rm -rf $(OBJ_DIR) $(BIN_DIR)
+	@echo "  → Limpieza completada"
+
+# Información de compilación
+info:
+	@echo "Arquitectura : $(ARCH)"
+	@echo "Compilador   : $(CXX)"
+	@echo "Flags C++    : $(CXXFLAGS)"
+	@echo "Librerías    : $(LIBS)"
+	@echo "Fuentes      : $(words $(SRCS)) archivos"
+	@echo "Target       : $(TARGET)"
