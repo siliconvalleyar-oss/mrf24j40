@@ -5,7 +5,7 @@
 # =============================================================================
 
 CXX       := g++
-CXXFLAGS  := -std=c++17 -Wall -Wextra -O2 -pthread
+CXXFLAGS  := -std=c++17 -Wall -Wextra -O2 -pthread -DENABLE_JSON
 LDFLAGS   := -pthread
 
 # Directorios

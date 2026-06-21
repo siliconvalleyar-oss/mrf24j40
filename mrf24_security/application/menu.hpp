@@ -64,11 +64,19 @@ private:
     void optionTestTft();           // Opción 6
     void optionViewConfig();        // Opción 7
     void optionViewLogs();          // Opción 8
+    void optionConfigureRole();     // Opción 9
+    void optionRoutingTable();      // Opción 10
+    void optionValidationStats();   // Opción 11
 
     // === Utilidad ===
     std::array<uint8_t, 8> inputMacAddress();
     std::string inputString(const char* prompt);
     int inputInt(const char* prompt, int default_val = 0);
+
+    /**
+     * @brief Lee una dirección MAC de 64 bits como uint64_t.
+     */
+    uint64_t inputMac64();
 };
 
 } // namespace application

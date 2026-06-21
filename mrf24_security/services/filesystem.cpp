@@ -21,6 +21,7 @@ using json = nlohmann::json;
 #include <iomanip>
 #include <algorithm>
 #include <cstring>
+#include <cstdio>
 
 namespace services {
 
@@ -76,6 +77,23 @@ SystemConfig FileSystem_t::loadConfig() {
         if (j.contains("enable_hash")) cfg.enable_hash = j["enable_hash"].get<bool>();
         if (j.contains("log_file")) cfg.log_file = j["log_file"].get<std::string>();
 
+        // Role
+        if (j.contains("role")) {
+            auto role_str = j["role"].get<std::string>();
+            cfg.role = roleFromString(role_str);
+        }
+
+        // Routing table
+        if (j.contains("routing_table") && j["routing_table"].is_array()) {
+            cfg.routing_table.clear();
+            for (const auto& entry : j["routing_table"]) {
+                uint64_t dest = 0, next = 0;
+                if (entry.contains("dest")) dest = std::stoull(entry["dest"].get<std::string>(), nullptr, 16);
+                if (entry.contains("next")) next = std::stoull(entry["next"].get<std::string>(), nullptr, 16);
+                cfg.routing_table.emplace_back(dest, next);
+            }
+        }
+
         // MAC address (array de 8 bytes)
         if (j.contains("mac_address") && j["mac_address"].is_array()) {
             auto mac = j["mac_address"];
@@ -110,6 +128,20 @@ bool FileSystem_t::saveConfig(const SystemConfig& config) {
         j["enable_encryption"] = config.enable_encryption;
         j["enable_hash"] = config.enable_hash;
         j["log_file"] = config.log_file;
+
+        // Role
+        j["role"] = std::string(roleToString(config.role));
+
+        // Routing table
+        for (const auto& [dest, next] : config.routing_table) {
+            nlohmann::json entry;
+            char buf_dest[20], buf_next[20];
+            snprintf(buf_dest, sizeof(buf_dest), "%016llX", (unsigned long long)dest);
+            snprintf(buf_next, sizeof(buf_next), "%016llX", (unsigned long long)next);
+            entry["dest"] = std::string(buf_dest);
+            entry["next"] = std::string(buf_next);
+            j["routing_table"].push_back(std::move(entry));
+        }
 
         // MAC address como array
         for (auto b : config.mac_address) {
@@ -291,6 +323,58 @@ std::string FileSystem_t::currentTimestamp() {
     char buf[32];
     std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", tm);
     return std::string(buf) + "." + std::to_string(ms.count());
+}
+
+// ============================================================================
+// Roles & Routing
+// ============================================================================
+
+NodeRole FileSystem_t::loadRole() {
+    auto cfg = loadConfig();
+    return cfg.role;
+}
+
+bool FileSystem_t::saveRole(NodeRole role) {
+    auto cfg = loadConfig();
+    cfg.role = role;
+    return saveConfig(cfg);
+}
+
+std::vector<std::pair<uint64_t, uint64_t>> FileSystem_t::loadRoutingTable() {
+    auto cfg = loadConfig();
+    return cfg.routing_table;
+}
+
+bool FileSystem_t::saveRoutingTable(const std::vector<std::pair<uint64_t, uint64_t>>& table) {
+    auto cfg = loadConfig();
+    cfg.routing_table = table;
+    return saveConfig(cfg);
+}
+
+std::string_view FileSystem_t::roleToString(NodeRole role) {
+    switch (role) {
+        case NodeRole::EndDevice:   return "end_device";
+        case NodeRole::Router:      return "router";
+        case NodeRole::Coordinator: return "coordinator";
+        case NodeRole::Mesh:        return "mesh";
+        default:                    return "end_device";
+    }
+}
+
+NodeRole FileSystem_t::roleFromString(std::string_view str) {
+    if (str == "router")      return NodeRole::Router;
+    if (str == "coordinator") return NodeRole::Coordinator;
+    if (str == "mesh")        return NodeRole::Mesh;
+    return NodeRole::EndDevice;
+}
+
+uint8_t FileSystem_t::roleToByte(NodeRole role) {
+    return static_cast<uint8_t>(role);
+}
+
+NodeRole FileSystem_t::roleFromByte(uint8_t byte) {
+    if (byte <= 3) return static_cast<NodeRole>(byte);
+    return NodeRole::EndDevice;
 }
 
 } // namespace services

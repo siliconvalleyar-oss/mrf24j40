@@ -15,6 +15,7 @@
 #include <chrono>
 #include <csignal>
 #include <ctime>
+#include <cstdio>
 
 namespace application {
 
@@ -110,7 +111,10 @@ void Menu_t::showMenu() {
     std::cout << "║  6. Probar TFT (ST7789)                       ║\n";
     std::cout << "║  7. Ver/Editar configuración                  ║\n";
     std::cout << "║  8. Ver logs                                  ║\n";
-    std::cout << "║  9. Salir                                     ║\n";
+    std::cout << "║  9. Configurar rol ZigBee                     ║\n";
+    std::cout << "║ 10. Tabla de enrutamiento                     ║\n";
+    std::cout << "║ 11. Estadísticas de validación                ║\n";
+    std::cout << "║  0. Salir                                     ║\n";
     std::cout << "╚════════════════════════════════════════════════╝\n";
     std::cout << "\n  Opción: ";
     std::cout.flush();
@@ -141,7 +145,7 @@ void Menu_t::run() {
         int option = 0;
         try { option = std::stoi(input); } catch (...) { continue; }
 
-        if (option == 9) {
+        if (option == 0) {
             m_running = false;
             std::cout << "\n  Saliendo...\n";
             break;
@@ -167,6 +171,9 @@ void Menu_t::handleOption(int option) {
         case 6: optionTestTft();        break;
         case 7: optionViewConfig();     break;
         case 8: optionViewLogs();       break;
+        case 9: optionConfigureRole();  break;
+        case 10: optionRoutingTable();  break;
+        case 11: optionValidationStats(); break;
         default:
             std::cout << "  Opción inválida.\n";
             break;
@@ -381,7 +388,158 @@ void Menu_t::optionViewConfig() {
 
 void Menu_t::optionViewLogs() {
     std::cout << "╔═══ LOGS ═══╗\n\n";
-    m_manager.showLog(20);
+    m_manager.showLog(20);    }
+
+// ============================================================================
+// Opción 9: Configurar rol ZigBee
+// ============================================================================
+
+void Menu_t::optionConfigureRole() {
+    std::cout << "╔═══ CONFIGURAR ROL ZIGBEE ═══╗\n\n";
+    std::cout << "  Roles disponibles:\n";
+    std::cout << "    0 - End Device   (solo envía/recibe de su coordinador)\n";
+    std::cout << "    1 - Router       (reenvía mensajes entre nodos)\n";
+    std::cout << "    2 - Coordinator  (nodo raíz, puente a redes externas)\n";
+    std::cout << "    3 - Mesh         (Router + End Device según topología)\n\n";
+    std::cout << "  Rol actual: ";
+    switch (m_manager.role()) {
+        case NodeRole::EndDevice:   std::cout << "End Device\n"; break;
+        case NodeRole::Router:      std::cout << "Router\n"; break;
+        case NodeRole::Coordinator: std::cout << "Coordinator\n"; break;
+        case NodeRole::Mesh:        std::cout << "Mesh\n"; break;
+    }
+
+    int role = inputInt("  Nuevo rol [0-3]: ", -1);
+    if (role < 0 || role > 3) {
+        std::cout << "  Rol no modificado.\n";
+        return;
+    }
+
+    auto new_role = static_cast<NodeRole>(role);
+    m_manager.setRole(new_role);
+    m_manager.saveConfig();
+
+    std::cout << "\n  ✅ Rol cambiado a: ";
+    switch (new_role) {
+        case NodeRole::EndDevice:   std::cout << "End Device"; break;
+        case NodeRole::Router:      std::cout << "Router"; break;
+        case NodeRole::Coordinator: std::cout << "Coordinator"; break;
+        case NodeRole::Mesh:        std::cout << "Mesh"; break;
+    }
+    std::cout << "\n";
+
+    if (m_manager.canForward()) {
+        std::cout << "  ℹ Este rol puede reenviar mensajes (Router+).\n";
+    }
+}
+
+// ============================================================================
+// Opción 10: Tabla de enrutamiento
+// ============================================================================
+
+void Menu_t::optionRoutingTable() {
+    std::cout << "╔═══ TABLA DE ENRUTAMIENTO ═══╗\n\n";
+
+    auto& routes = m_manager.routingTable();
+
+    if (routes.empty()) {
+        std::cout << "  (vacía)\n\n";
+    } else {
+        std::cout << "  Destino              → Siguiente salto      \n";
+        std::cout << "  ─────────────────────────────────────────────\n";
+        for (const auto& [dest, next] : routes) {
+            char dest_str[20], next_str[20];
+            snprintf(dest_str, sizeof(dest_str), "0x%016llX", (unsigned long long)dest);
+            snprintf(next_str, sizeof(next_str), "0x%016llX", (unsigned long long)next);
+            std::cout << "  " << dest_str << "  →  " << next_str << "\n";
+        }
+        std::cout << "\n";
+    }
+
+    std::cout << "  Acciones:\n";
+    std::cout << "    1. Agregar ruta\n";
+    std::cout << "    2. Eliminar ruta\n";
+    std::cout << "    0. Volver\n\n";
+
+    int action = inputInt("  Acción: ", 0);
+
+    if (action == 1) {
+        std::cout << "\n  Agregar ruta:\n";
+        uint64_t dest = inputMac64();
+        if (dest == 0) {
+            std::cout << "  ❌ Destino inválido.\n";
+            return;
+        }
+        std::cout << "  Destino: 0x" << std::hex << dest << std::dec << "\n";
+
+        uint64_t next = inputMac64();
+        if (next == 0) {
+            std::cout << "  ❌ Siguiente salto inválido.\n";
+            return;
+        }
+        std::cout << "  Siguiente salto: 0x" << std::hex << next << std::dec << "\n";
+
+        m_manager.addRoute(dest, next);
+        m_manager.saveConfig();
+        std::cout << "  ✅ Ruta agregada.\n";
+    } else if (action == 2) {
+        if (routes.empty()) {
+            std::cout << "  No hay rutas para eliminar.\n";
+            return;
+        }
+        std::cout << "\n  Eliminar ruta (ingresa destino):\n";
+        uint64_t dest = inputMac64();
+        if (dest == 0) {
+            std::cout << "  ❌ Destino inválido.\n";
+            return;
+        }
+        m_manager.removeRoute(dest);
+        m_manager.saveConfig();
+        std::cout << "  ✅ Ruta eliminada (si existía).\n";
+    }
+}
+
+// ============================================================================
+// Opción 11: Estadísticas de validación
+// ============================================================================
+
+void Menu_t::optionValidationStats() {
+    std::cout << "╔═══ ESTADÍSTICAS DE VALIDACIÓN ═══╗\n\n";
+
+    auto& stats = m_manager.validationStats();
+
+    std::cout << "  Mensajes validados:     " << stats.messages_validated << "\n";
+    std::cout << "  Mensajes rechazados:    " << stats.messages_rejected << "\n";
+    std::cout << "  Mensajes reenviados:    " << stats.messages_forwarded << "\n";
+    std::cout << "  TTL expirados:          " << stats.ttl_expired << "\n";
+    std::cout << "  Role mismatches:        " << stats.role_mismatch << "\n";
+    std::cout << "  Errores de hash:        " << stats.hash_errors << "\n";
+    std::cout << "  Sin ruta de reenvío:    " << stats.routing_not_found << "\n";
+
+    // Mostrar rol actual
+    std::cout << "\n  Rol actual: ";
+    switch (m_manager.role()) {
+        case NodeRole::EndDevice:   std::cout << "End Device"; break;
+        case NodeRole::Router:      std::cout << "Router"; break;
+        case NodeRole::Coordinator: std::cout << "Coordinator"; break;
+        case NodeRole::Mesh:        std::cout << "Mesh"; break;
+    }
+    std::cout << "\n";
+
+    std::cout << "  ¿Puede reenviar?:       " << (m_manager.canForward() ? "Sí" : "No") << "\n";
+}
+
+// ============================================================================
+// Utilidad: entrada de MAC como uint64_t
+// ============================================================================
+
+uint64_t Menu_t::inputMac64() {
+    auto mac = inputMacAddress();
+    uint64_t val = 0;
+    for (int i = 0; i < 8; i++) {
+        val = (val << 8) | mac[i];
+    }
+    return val;
 }
 
 } // namespace application

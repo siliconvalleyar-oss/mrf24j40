@@ -213,6 +213,7 @@ Los proyectos ahora incluyen un **puente radio ⟷ MQTT** (solo compila si `libm
 
 | Versión | Cambios |
 |---------|---------|
+| **v2.0.3** | ✅ Roles ZigBee (EndDevice, Router, Coordinator, Mesh), ✅ Validación SHA-256, ✅ Enrutamiento con TTL, ✅ Menú extendido, ✅ config.json persistente |
 | **v2.0.2** | MQTT (mqtt_handler, mqtt_bridge), fix Makefiles, header mrf24j40.h, TODO.md, eliminar stubs vacíos |
 | **v2.0.1** | Comentarios Doxygen en todos los .cpp |
 | **v2.0.0** | Reestructuración: mrf24_tx/ y mrf24_rx/, Makefile con detección automática de librerías |

@@ -21,8 +21,17 @@
 #include <fstream>
 #include <mutex>
 #include <array>
+#include <utility>
 
 namespace services {
+
+/** @brief Roles de dispositivo en la red ZigBee. */
+enum class NodeRole : uint8_t {
+    EndDevice   = 0, /**< Solo envía/recibe de su coordinador */
+    Router      = 1, /**< Reenvía mensajes entre nodos */
+    Coordinator = 2, /**< Nodo raíz, puente a redes externas */
+    Mesh        = 3  /**< Router + End Device según topología */
+};
 
 /**
  * @brief Estructura de configuración completa del sistema.
@@ -46,6 +55,10 @@ struct SystemConfig {
     bool log_rx = true;
     bool log_tx = true;
     bool log_errors = true;
+
+    // Role & Routing
+    NodeRole role = NodeRole::EndDevice;           ///< Rol del dispositivo en la red
+    std::vector<std::pair<uint64_t, uint64_t>> routing_table; ///< Tabla de rutas [destino, siguiente_salto]
 
     // Security
     bool enable_encryption = true;
@@ -169,6 +182,44 @@ public:
      */
     std::string logPath() const { return m_log_file; }
 
+    // === Roles & Routing ===
+
+    /**
+     * @brief Carga el rol del dispositivo desde la configuración.
+     * @return NodeRole configurado (por defecto EndDevice).
+     */
+    NodeRole loadRole();
+
+    /**
+     * @brief Guarda el rol del dispositivo en la configuración.
+     * @param role Rol a guardar.
+     * @return true si éxito.
+     */
+    bool saveRole(NodeRole role);
+
+    /**
+     * @brief Carga la tabla de enrutamiento desde la configuración.
+     * @return Vector de pares [destino, siguiente_salto].
+     */
+    std::vector<std::pair<uint64_t, uint64_t>> loadRoutingTable();
+
+    /**
+     * @brief Guarda la tabla de enrutamiento en la configuración.
+     * @param table Tabla de rutas.
+     * @return true si éxito.
+     */
+    bool saveRoutingTable(const std::vector<std::pair<uint64_t, uint64_t>>& table);
+
+    /**
+     * @brief Convierte NodeRole a string.
+     */
+    static std::string_view roleToString(NodeRole role);
+
+    /**
+     * @brief Convierte string a NodeRole.
+     */
+    static NodeRole roleFromString(std::string_view str);
+
 private:
     std::string m_config_file;   ///< Ruta al archivo JSON de configuración
     std::string m_log_file;      ///< Ruta al archivo de log
@@ -190,6 +241,16 @@ private:
      * @brief Convierte LogLevel a string.
      */
     static std::string_view levelToString(LogLevel level);
+
+    /**
+     * @brief Convierte un rol a su representación hexadecimal para la trama.
+     */
+    static uint8_t roleToByte(NodeRole role);
+
+    /**
+     * @brief Convierte un byte a NodeRole.
+     */
+    static NodeRole roleFromByte(uint8_t byte);
 
     /**
      * @brief Obtiene timestamp actual como string.
