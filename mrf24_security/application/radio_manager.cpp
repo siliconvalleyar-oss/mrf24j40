@@ -432,6 +432,10 @@ ValidationResult RadioManager_t::validateMessage(const uint8_t* rawMessage, uint
 // ============================================================================
 
 bool RadioManager_t::forwardMessage(const std::vector<uint8_t>& msg, uint64_t nextHop) {
+    if (!m_radio_ok || !m_radio) {
+        log("Cannot forward: radio not available", services::LogLevel::Warning);
+        return false;
+    }
     if (!canForward()) {
         log("Cannot forward: role does not allow forwarding", services::LogLevel::Warning);
         return false;
@@ -460,8 +464,8 @@ bool RadioManager_t::forwardMessage(const std::vector<uint8_t>& msg, uint64_t ne
 
     // Enviar al siguiente salto
     auto next_mac_arr = uint64ToMac(nextHop);
-    bool ok = m_radio->send(next_mac_arr, fwd_msg.data(),
-                            static_cast<uint8_t>(fwd_msg.size()));
+    bool ok = m_radio_ok && m_radio->send(next_mac_arr, fwd_msg.data(),
+                                           static_cast<uint8_t>(fwd_msg.size()));
 
     if (ok) {
         m_validation_stats.messages_forwarded++;
@@ -505,7 +509,7 @@ uint64_t RadioManager_t::localMac64() const {
 
 bool RadioManager_t::sendMessage(const std::array<uint8_t, 8>& dest_mac,
                                   std::string_view message) {
-    if (!m_initialized || !m_radio || !m_crypto) return false;
+    if (!m_initialized || !m_radio_ok || !m_radio || !m_crypto) return false;
 
     std::vector<uint8_t> plaintext(message.begin(), message.end());
 
@@ -543,7 +547,7 @@ bool RadioManager_t::sendMessage(const std::array<uint8_t, 8>& dest_mac,
 
 bool RadioManager_t::sendData(const std::array<uint8_t, 8>& dest_mac,
                                const uint8_t* data, uint8_t len) {
-    if (!m_initialized || !m_radio) return false;
+    if (!m_initialized || !m_radio_ok || !m_radio) return false;
 
     // Enviar datos raw sin protocolo seguro (para debug/compatibilidad)
     return m_radio->send(dest_mac, data, len);
