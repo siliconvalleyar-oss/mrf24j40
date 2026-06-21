@@ -87,10 +87,10 @@ void send64(const uint64_t dest64, const DATA::packet_tx packet);
 void interrupt_handler();
 void set_pan(const uint16_t panid);
 void address16_write(const uint16_t addr);
-void address64_write(const uint64_t addr);
-void set_promiscuous(const bool enable);
-void set_channel(const uint8_t channel);
-const bool check_flags(void (*rx_handler)(), void (*tx_handler)());
+void address64_write(const uint64_t addr);    void set_promiscuous(const bool enable);
+    void set_channel(const uint8_t channel);
+    void settingsSecurity(void);           // Configura (deshabilita) seguridad hardware
+    const bool check_flags(void (*rx_handler)(), void (*tx_handler)());
 rx_info_t* get_rxinfo();
 tx_info_t* get_txinfo();
 uint8_t* get_rxbuf();

@@ -6,7 +6,7 @@ Tareas pendientes, mejoras y issues conocidos del proyecto transmisor.
 
 ## 🔴 Alta Prioridad
 
-- [ ] **Fix `radio.cpp`**: implementar `Mrf24j::settingsSecurity()` o eliminarlo del constructor
+- [x] Implementar `Mrf24j::settingsSecurity()` — deshabilita cifrado hardware
 - [ ] **Fix `radio.cpp`**: hacer `set_promiscuous()` público en `Mrf24j` o usar friend class
 - [ ] **Probar compilación en Raspberry Pi** con todos los fixes aplicados
 

@@ -11,6 +11,7 @@
  */
 
 #include <iostream>
+#include <cstdint>
 
 namespace MRF24J40 {
 

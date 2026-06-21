@@ -44,10 +44,10 @@ void init();
 void interrupt_handler();
 void set_pan(const uint16_t panid);
 void address16_write(const uint16_t addr);
-void address64_write(const uint64_t addr);
-void set_promiscuous(const bool enable);
-void set_channel(const uint8_t channel);
-void rx_enable();
+void address64_write(const uint64_t addr);    void set_promiscuous(const bool enable);
+    void set_channel(const uint8_t channel);
+    void settingsSecurity(void);           // Configura (deshabilita) seguridad hardware
+    void rx_enable();
 void rx_disable();
 void rx_flush();
 const bool check_flags(void (*rx_handler)(), void (*tx_handler)());

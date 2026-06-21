@@ -2,8 +2,8 @@
 
 ## Estado actual
 - **Último tag:** v2.0.2
-- **Rama:** v2.0.0
-- **Último commit:** `8359e7f` — eliminar stubs vacíos de mosquitto
+- **Rama activa:** `release/V3` (nueva) ← `release/V2` (anteriormente `v2.0.0`)
+- **Último commit:** `dc838f5` — implementar Mrf24j::settingsSecurity()
 - **Arquitectura target:** Raspberry Pi (ARM aarch64 / armv7l)
 
 ---
@@ -20,7 +20,8 @@
 - [x] Fix constructor `GPIO::Gpio_t` — pasar `m_status`
 - [x] Eliminar stubs vacíos de mosquitto (0 bytes)
 - [x] Limpiar Makefiles (referencias a stubs eliminados)
-- [ ] **Pendiente:** `Mrf24j::settingsSecurity()` — método llamado pero no declarado
+- [x] Implementar `Mrf24j::settingsSecurity()` — deshabilita cifrado hardware (SECCON0/1, SECCR2)
+- [x] Fix `#include <cstdint>` faltante en `mrf24j40_settings.hpp`
 - [ ] **Pendiente:** `Mrf24j::set_promiscuous()` es `protected` — Radio_t no puede accederlo
 - [ ] **Pendiente:** Corregir `-Wignored-qualifiers` en `spi.hpp`, `gpio.hpp`
 - [ ] **Pendiente:** Probar compilación completa en Raspberry Pi
