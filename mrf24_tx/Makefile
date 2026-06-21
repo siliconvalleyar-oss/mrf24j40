@@ -123,8 +123,7 @@ SRCS := \
     $(SRC_DIR)/oled/oled/oled.cpp \
     $(SRC_DIR)/fonts/font5x7.cpp \
     $(SRC_DIR)/mosquitto/mqtt_handler.cpp \
-    $(SRC_DIR)/mosquitto/mqtt_bridge.cpp \
-    $(SRC_DIR)/mosquitto/mosquitto.cpp
+    $(SRC_DIR)/mosquitto/mqtt_bridge.cpp
 
 OBJS := $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRCS))
 DEPS := $(OBJS:.o=.d)
