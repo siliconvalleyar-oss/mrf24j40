@@ -317,6 +317,9 @@ namespace MRF24J40 {
         std::atomic<uint8_t> m_flag_got_tx{};  /**< Flag atómico de TX completada */
     };
 
+    /** @brief Alias para compatibilidad con código existente que usa Mrf24j_t */
+    using Mrf24j_t = Mrf24j;
+
 }  // namespace MRF24J40
 
 /** @} */  // end of MRF24J40 namespace
