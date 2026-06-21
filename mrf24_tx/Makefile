@@ -101,8 +101,6 @@ SRCS := \
     $(SRC_DIR)/spi/spi.cpp \
     $(SRC_DIR)/spi/spi_dbg.cpp \
     $(SRC_DIR)/gpio/gpio.cpp \
-    $(SRC_DIR)/radio/radio.cpp \
-    $(SRC_DIR)/radio/run.cpp \
     $(SRC_DIR)/mrf24/mrf24j40.cpp \
     $(SRC_DIR)/mrf24/mrf24j40_send.cpp \
     $(SRC_DIR)/mrf24/mrf24j40_template.cpp \
