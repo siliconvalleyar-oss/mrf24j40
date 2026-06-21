@@ -1,0 +1,100 @@
+#===============================================================================
+# Doxyfile - Configuración de Doxygen para MRF24J40 IoT
+#===============================================================================
+# Generado para el proyecto unificado: hal/, drivers/, services/, application/
+#===============================================================================
+
+# --- Configuración del proyecto ---
+PROJECT_NAME           = "MRF24J40 IoT System"
+PROJECT_NUMBER         = 2.0.0
+PROJECT_BRIEF          = "Sistema IoT modular con radio IEEE 802.15.4, cifrado AES-256, displays OLED/TFT y QR"
+OUTPUT_DIRECTORY       = docs/doxygen
+CREATE_SUBDIRS         = YES
+FULL_PATH_NAMES        = YES
+
+# --- Extracción ---
+INPUT                  = ./
+RECURSIVE              = YES
+FILE_PATTERNS          = *.hpp *.cpp *.h
+EXCLUDE                = mrf24_tx mrf24_rx scripts_tools flow
+EXCLUDE_PATTERNS       = */test/*
+EXAMPLE_PATH           = ./
+
+# --- Indexación ---
+ALPHABETICAL_INDEX     = YES
+IGNORE_PREFIX          = 
+
+# --- Generación HTML ---
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+HTML_HEADER            =
+HTML_FOOTER            =
+HTML_STYLESHEET        =
+HTML_COLORSTYLE        = AUTO_LIGHT
+HTML_TIMESTAMP         = YES
+
+# --- Generación LaTeX/PDF ---
+GENERATE_LATEX         = YES
+LATEX_OUTPUT           = latex
+PDF_HYPERLINKS         = YES
+USE_PDFLATEX           = YES
+
+# --- Diagramas ---
+HAVE_DOT               = YES
+DOT_NUM_THREADS        = 0
+DOT_IMAGE_FORMAT       = svg
+INTERACTIVE_SVG        = YES
+DOT_GRAPH_MAX_NODES    = 100
+MAX_DOT_GRAPH_DEPTH    = 1000
+UML_LOOK               = YES
+TEMPLATE_RELATIONS     = YES
+CALL_GRAPH             = YES
+CALLER_GRAPH           = YES
+
+# --- Extracción de código ---
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = YES
+HIDE_UNDOC_MEMBERS     = NO
+HIDE_UNDOC_CLASSES     = NO
+
+# --- Clasificación ---
+SORT_MEMBER_DOCS       = YES
+SORT_BRIEF_DOCS        = YES
+SORT_BY_SCOPE_NAME     = YES
+
+# --- C++ específico ---
+OPTIMIZE_OUTPUT_FOR_C  = NO
+BUILTIN_STL_SUPPORT    = YES
+CPP_CLI_SUPPORT        = NO
+SIP_SUPPORT            = NO
+IDL_PROPERTY_SUPPORT   = YES
+DISTRIBUTE_GROUP_DOC   = YES
+
+# --- Grupos personalizados ---
+TAB_SIZE               = 4
+ALIASES                =
+
+# --- Grafo de dependencias ---
+DOT_GRAPH_MAX_NODES    = 100
+MAX_DOT_GRAPH_DEPTH    = 1000
+DOT_TRANSPARENT        = YES
+
+# --- Preprocesador ---
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = NO
+SEARCH_INCLUDES        = YES
+INCLUDE_PATH           = ./
+INCLUDE_FILE_PATTERNS  = *.hpp *.h
+
+# --- Advertencias ---
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = NO
+QUIET                  = NO
+
+# --- Idiomas ---
+OUTPUT_LANGUAGE        = Spanish

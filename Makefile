@@ -1,189 +1,164 @@
-#######################################APPLICATION##################################################
-################################################################################################
-########################################MACROS##################################################
-################################################################################################
-#$(1)
-#$(2)   Object file to generate
-#$(3)   Source file
-#$(4)   Additional dependencies
-#$(5)   Compiler flags
-#define COMPILE
-#$(2) : $(3) $(4)
-#	$(1) -c -o $(2) $(3) $(5)
-#endef
+#===============================================================================
+# Makefile - Sistema MRF24J40 IoT (versión unificada)
+#===============================================================================
+# Compilación del sistema completo: radio, displays, crypto, QR, menú
+#===============================================================================
 
-define COMPILE
-$(2) : $(3) $(4)
-	$(1) -c -o $(2) $(3) $(filter-out -I$(SRC),$(5)) $(INCDIRS)
-endef
+# --- Compilador y flags ---
+CXX       ?= g++
+CXXFLAGS  ?= -O2 -std=c++17
+CXXFLAGS  += -Wall -Wextra -Wpedantic -MMD -MP
+CXXFLAGS  += -I. -Iinclude
 
-define C2O
-$(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(patsubst $(SRC)%,$(OBJ)%,$(1))))
-endef
-#$(1) Source file
-define C2H
-$(patsubst %.c,%.h,$(patsubst %.cpp,%.hpp,$(1)))
-endef
-################################################################################################
-################################################################################################
-################################################################################################v
-PROJECT_NAME 	:=	src
-#OLED 			:= 	oled
+LDFLAGS   = -pthread -lbcm2835
 
-# Detectar si es de 32 o 64 bits
-ARCH := $(shell uname -m)
+# --- Archivos fuente ---
+SRCS_HAL     = hal/gpio.cpp hal/spi.cpp hal/i2c.cpp
+SRCS_DRIVERS = drivers/ssd1306.cpp drivers/st7789.cpp drivers/qr.cpp \
+               drivers/mrf24j40.cpp
+SRCS_SERVICES = services/crypto.cpp services/filesystem.cpp services/timer.cpp
+SRCS_APP     = application/radio_manager.cpp application/menu.cpp
 
-ifeq ($(ARCH),aarch64)
-    APP := bin/mrf24_app
-    $(info aarch64 mrf24_tx_app )
-else ifeq ($(ARCH),armv7l) 
-    $(info armv7l mrf24_rx_app)
-    APP := bin/mrf24_app
-else ifeq ($(ARCH),x86_64)
-    APP := bin/mrf24_app
-    $(info x86_64 detectado OS de 64 bits) 
+SRCS = main.cpp $(SRCS_HAL) $(SRCS_DRIVERS) $(SRCS_SERVICES) $(SRCS_APP)
+OBJS = $(SRCS:.cpp=.o)
+DEPS = $(SRCS:.cpp=.d)
+
+TARGET = mrf24j40_iot
+
+# --- Detección automática de librerías opcionales ---
+
+# OpenSSL (AES-256-CBC, SHA-256)
+ifneq ($(shell pkg-config --exists openssl 2>/dev/null && echo yes),)
+    CXXFLAGS += -DENABLE_OPENSSL
+    LDFLAGS  += $(shell pkg-config --cflags --libs openssl 2>/dev/null)
 else
-    $(info ningun OS detectado)
-	APP := bin/mrf24_app
+    # Fallback: buscar libcrypto directamente
+    ifneq ($(shell ldconfig -p 2>/dev/null | grep -q libcrypto; echo $$?),1)
+        LDFLAGS += -lcrypto -lssl
+        CXXFLAGS += -DENABLE_OPENSSL
+    endif
 endif
 
-# Flags para generar las dependencias automáticamente
-DEPFLAGS = -MMD -MP
-
-#APP         := bin/mrf24_app
-CFLAGS     	:= -Wall -pedantic
-#CCFLAGS     := $(CFLAGS) -std=c++17
-CCFLAGS     := $(CFLAGS) -std=c++20
-# Modifica los flags del compilador para incluir DEPFLAGS
-CFLAGS += $(DEPFLAGS)
-CCFLAGS += $(DEPFLAGS)
-
-# Lista de archivos .d generados
-DEPS = $(ALLOBJ:.o=.d)
-
-# Incluir los archivos de dependencias generados (.d)
--include $(DEPS)
-
-CC          	:= g++
-C		:= gcc
-MKDIR       	:= mkdir -p
-SRC         	:= $(PROJECT_NAME)
-OBJ         	:= obj
-#LIBDIR 		:= $(PROJECT_NAME)
-LIBDIR          :=  include/
-
-# Compilar con clang++ si es de 64 bits
-ifeq ($(ARCH),x86_64)
-	CC := g++
-#CC := clang++
+# nlohmann/json (configuración JSON)
+ifneq ($(shell pkg-config --exists nlohmann_json 2>/dev/null && echo yes),)
+    CXXFLAGS += -DENABLE_JSON
+    CXXFLAGS += $(shell pkg-config --cflags nlohmann_json 2>/dev/null)
 else
-	CC := clang++
+    # Buscar header directamente
+    JSON_HEADER := /usr/include/nlohmann/json.hpp
+    ifeq ($(wildcard $(JSON_HEADER)),)
+        $(warning nlohmann/json no encontrado. La configuración JSON usará valores por defecto.)
+    else
+        CXXFLAGS += -DENABLE_JSON
+    endif
 endif
 
-
-LIBS := $(CFLAGS)
-
-#se duplica , correccion 
-#INCDIRS := -I$(SRC) -I$(LIBDIR)
-ifeq ($(SRC),$(LIBDIR))
-    INCDIRS := -I$(SRC)
+# libqrencode (generación de QR)
+ifneq ($(shell pkg-config --exists libqrencode 2>/dev/null && echo yes),)
+    CXXFLAGS += -DENABLE_QRENCODE
+    LDFLAGS  += $(shell pkg-config --cflags --libs libqrencode 2>/dev/null)
 else
-    INCDIRS := -I$(SRC) -I$(LIBDIR)
+    LDFLAGS  += -lqrencode
+    CXXFLAGS += -DENABLE_QRENCODE
 endif
 
-
-LIBS += -pthread -lbcm2835  -lz
-#	Libraries Encript AES
-#LIBS += -lssl -lcrypto
-#	librerias Mosquitto
-#LIBS += -lmosquitto -lrt 
-#	libreria de base de datos
-LIBS += -lmysqlcppconn -lqrencode -lpng
-
-# Detectar la arquitectura del sistema
-ifeq ($(ARCH),x86_64)
-    # Si es de 64 bits (x86_64), utilizar la biblioteca SSD1306_OLED_RPI
-#   LIBS += -lSSD1306_OLED_RPI  
-    $(info x86_64 detectado OS de 64 bits)
-else ifeq ($(ARCH),aarch64)
-    # Si es de 64 bits (ARM), utilizar la biblioteca SSD1306_OLED_RPI
-#    LIBS += -lSSD1306_OLED_RPI  
-    $(info aarch64 detectado OS de 64 bits)
-else ifeq ($(ARCH),armv7l) # O cualquier otra arquitectura de 32 bits que necesites verificar
-    # Si es de 32 bits (ARM), no usar la biblioteca SSD1306_OLED_RPI
-    $(info armv7l detectado OS de 32 bits)
-#    LIBS += -lSSD1306_OLED_RPI
-    # No se agrega LIBS para 32 bits
+# libpng (exportar QR a PNG)
+ifneq ($(shell pkg-config --exists libpng 2>/dev/null && echo yes),)
+    LDFLAGS  += $(shell pkg-config --cflags --libs libpng 2>/dev/null)
 else
-    # Si es una arquitectura de 32 bits no específica
-    $(info OS de 32 bits detectado)
+    LDFLAGS  += -lpng -lz
 endif
 
-#CXXFLAGS = -g -O0
-
-#para el uso commando es make DEBUG=1
-ifdef DBG 
-	CCFLAGS += -g
+# BCM2835 (GPIO nativo)
+ifneq ($(shell pkg-config --exists libbcm2835 2>/dev/null && echo yes),)
+    CXXFLAGS += $(shell pkg-config --cflags libbcm2835 2>/dev/null)
 else
-	CCFLAGS += -O3
+    CXXFLAGS += -I/usr/local/include
 endif
 
+# --- Targets ---
 
-ALLCPPS 	:= $(shell find $(PROJECT_NAME)/ -type f -iname *.cpp)
-#ALLOCPPSOBJ  	:= $(patsubst %.cpp,%.o,$(ALLCPPS))
-ALLCS		:= $(shell find $(PROJECT_NAME)/ -type f -iname *.c)
-#ALLCSOBJ	:= $(patsubst %.c,%.o,$(ALLCS))
-SUBDIRS 	:= $(shell find $(SRC) -type d)
-OBJSUBDIRS 	:= $(patsubst $(SRC)%,$(OBJ)%,$(SUBDIRS))
-ALLOBJ 		:= $(foreach F,$(ALLCPPS) $(ALLCS),$(call C2O,$(F)))
+.PHONY: all clean info help docs
 
-.PHONY: info libs libs-clean libs-cleanall print-vars oled
-#Generate APP
-$(APP) : $(OBJSUBDIRS) $(ALLOBJ)
-	$(CC) -o $(APP) $(ALLOBJ) $(LIBS)
+all: $(TARGET)
 
-#Generate rules for all objects
+# Link
+$(TARGET): $(OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+	@echo ""
+	@echo "=========================================="
+	@echo "  ✅ $(TARGET) compilado correctamente"
+	@echo "=========================================="
 
-$(foreach F,$(ALLCPPS),$(eval $(call COMPILE,$(CC),$(call C2O,$(F)),$(F),$(call C2H$(F)),$(CCFLAGS) $(INCDIRS))))
-$(foreach F,$(ALLCS),$(eval $(call COMPILE,$(C),$(call C2O,$(F)),$(F),$(call C2H$(F)),$(CFLAGS) $(INCDIRS))))
+# Compilación
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
+# Información de compilación
 info:
-	$(info $(SUBDIRS))
-	$(info $(OBJSUBDIRS))
+	@echo "=========================================="
+	@echo "  MRF24J40 IoT - Información"
+	@echo "=========================================="
+	@echo "  Compilador:       $(CXX)"
+	@echo "  Flags:            $(CXXFLAGS)"
+	@echo "  Linker:           $(LDFLAGS)"
+	@echo ""
+	@echo "  Librerías detectadas:"
+	@if $(CXX) $(CXXFLAGS) -E -P - < /dev/null 2>/dev/null; then \
+		echo "  - OpenSSL:         $(shell pkg-config --exists openssl && echo '✅' || echo '❌')"; \
+		echo "  - nlohmann/json:   $(shell pkg-config --exists nlohmann_json && echo '✅' || echo '❌')"; \
+		echo "  - libqrencode:     $(shell pkg-config --exists libqrencode && echo '✅' || echo '❌')"; \
+		echo "  - libpng:          $(shell pkg-config --exists libpng && echo '✅' || echo '❌')"; \
+		echo "  - BCM2835:         $(shell pkg-config --exists libbcm2835 && echo '✅' || echo '❌')"; \
+	fi
+	@echo ""
+	@echo "  Archivos fuente:   $(words $(SRCS))"
+	@echo "  Target:            $(TARGET)"
+	@echo "=========================================="
 
-$(OBJSUBDIRS):
-	$(MKDIR) $(OBJSUBDIRS) 
-
-run: $(APP)
-	sudo $<
-
+# Limpieza
 clean:
-	$(RM) -r "./$(OBJ)"
-	$(RM) -rf log/*
+	@rm -f $(OBJS) $(DEPS) $(TARGET)
+	@echo "🧹 Limpieza completada."
 
-cleanall: clean
-	$(RM) "./$(APP)"
+# Limpieza de documentación
+clean-docs:
+	@rm -rf docs/doxygen
+	@echo "🧹 Documentación Doxygen eliminada."
 
-cleanmrf: 
-	$(RM) -rf obj/mrf24 obj/config 
+# Generar documentación Doxygen
+docs:
+	@echo "=========================================="
+	@echo "  Generando documentación Doxygen..."
+	@echo "=========================================="
+	@command -v doxygen >/dev/null 2>&1 || { \
+		echo "❌  doxygen no está instalado."; \
+		echo "    Instalálo con: sudo apt-get install doxygen graphviz"; \
+		exit 1; \
+	}
+	doxygen Doxyfile
+	@echo ""
+	@echo "=========================================="
+	@echo "  ✅ Documentación generada en docs/doxygen/"
+	@echo "  📄 HTML: docs/doxygen/html/index.html"
+	@echo "  📄 PDF:  docs/doxygen/latex/refman.pdf"
+	@echo "=========================================="
 
-usr-libs:
-	$(MAKE) -C $(OLED)/
+# Ayuda
+help:
+	@echo "Uso: make [target]"
+	@echo ""
+	@echo "Targets:"
+	@echo "  all        Compila el sistema completo (default)"
+	@echo "  docs       Genera documentación Doxygen"
+	@echo "  info       Muestra información de compilación"
+	@echo "  clean      Limpia archivos objeto y binarios"
+	@echo "  clean-docs Limpia documentación generada"
+	@echo "  help       Muestra esta ayuda"
+	@echo ""
+	@echo "Variables:"
+	@echo "  CXX        Compilador C++ (default: g++)"
+	@echo "  CXXFLAGS   Flags adicionales (default: -O2 -std=c++17)"
 
-oled:
-	$(MAKE) -C $(OLED)/	
-
-libs:
-	$(MAKE)	-C $(LIBDIR)/
-	$(MAKE) -C $(OLED)/
-
-libs-clean:
-	$(MAKE) clean -C $(LIBDIR)/ 
-	$(MAKE) clean -C $(OLED)/
-
-libs-cleanall:
-	$(MAKE) cleanall -C $(LIBDIR)/ 
-
-print-vars:
-	@echo "INCDIRS = $(INCDIRS)"
-	@echo "CFLAGS = $(CFLAGS)"
+# Incluir dependencias automáticas
+-include $(DEPS)
