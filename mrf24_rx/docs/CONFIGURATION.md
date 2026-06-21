@@ -62,15 +62,14 @@ Para forzar modo receptor en 64 bits:
 
 ### MQTT
 
-```cpp
-// Habilitado automáticamente si libmosquitto está instalado:
-#define ENABLE_MQTT
+> **🔸 `ENABLE_MQTT` se define automáticamente en el Makefile**
+> cuando se detecta `libmosquitto` instalado.
+> No es necesario agregarlo manualmente en `config.hpp`.
 
-// Configuración del broker:
-// Host: "localhost"
-// Puerto: 1883
-// Client ID: "mrf24j40_rx"
-```
+Configuración del broker (valores por defecto):
+- **Host:** `localhost`
+- **Puerto:** `1883`
+- **Client ID:** `mrf24j40_rx`
 
 ### Tamaño de Paquete
 

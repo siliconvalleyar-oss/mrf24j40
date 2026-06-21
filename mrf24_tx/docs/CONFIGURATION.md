@@ -55,15 +55,14 @@ Archivo: `include/config/config.hpp`
 
 ### MQTT
 
-```cpp
-// Definir en config.hpp para habilitar MQTT:
-#define ENABLE_MQTT
+> **🔸 `ENABLE_MQTT` se define automáticamente en el Makefile**
+> cuando se detecta `libmosquitto` instalado.
+> No es necesario agregarlo manualmente en `config.hpp`.
 
-// Configuración del broker (valores recomendados):
-// Host: "localhost"
-// Puerto: 1883
-// Client ID: "mrf24j40_tx"
-```
+Configuración del broker (valores por defecto):
+- **Host:** `localhost`
+- **Puerto:** `1883`
+- **Client ID:** `mrf24j40_tx`
 
 ### Tamaño de Paquete
 
