@@ -32,7 +32,7 @@ Radio_t::Radio_t()
     #else
     : m_status(false)
     #endif
-    , gpio{std::make_unique<GPIO::Gpio_t>()}
+    , gpio{std::make_unique<GPIO::Gpio_t>(m_status)}
 {
     /**
      * @brief Inicializa el módulo radio y configura la red
