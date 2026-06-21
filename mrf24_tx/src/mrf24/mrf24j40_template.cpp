@@ -38,8 +38,8 @@ namespace MRF24J40 {
      * @brief Template de envío genérico para Mrf24j_t
      *
      * Función template que construye y envía una trama IEEE 802.15.4
-     * a una dirección de 64 bits. Actualmente el cuerpo está comentado
-     * (bloque `/* */`).
+     * a una dirección de 64 bits. Actualmente el cuerpo de la función
+     * está comentado (bloque con inicio/fin de comentario C).
      *
      * @tparam T Tipo de datos a enviar (deducido automáticamente)
      * @param dest64 Dirección MAC destino de 64 bits

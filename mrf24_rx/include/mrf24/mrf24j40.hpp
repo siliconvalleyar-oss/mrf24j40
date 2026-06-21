@@ -98,6 +98,20 @@ namespace MRF24J40 {
         void send64(const uint64_t dest64, const DATA::packet_tx packet);
 
         /**
+         * @brief Template de envío genérico
+         *
+         * Función template para enviar datos a una dirección de 64 bits.
+         * El tipo T se deduce automáticamente del argumento data.
+         * Actualmente el cuerpo está pendiente de implementación completa.
+         *
+         * @tparam T Tipo de datos a enviar
+         * @param dest64 Dirección MAC destino (64 bits)
+         * @param data   Datos a transmitir
+         */
+        template <typename T>
+        void send_template(const uint64_t dest64, const T& data);
+
+        /**
          * @brief Manejador de interrupciones (polling)
          * 
          * Debe llamarse periódicamente. Lee INTSTAT, procesa RX/TX,
