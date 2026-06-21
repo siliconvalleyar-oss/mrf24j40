@@ -9,6 +9,7 @@
 #include <hal/i2c.hpp>
 #include <stdexcept>
 #include <cstring>
+#include <string>
 #include <cerrno>
 #include <fcntl.h>
 #include <unistd.h>

@@ -11,6 +11,7 @@
 #include <cerrno>
 #include <unistd.h>
 #include <cstdio>
+#include <stdexcept>
 
 namespace drivers {
 

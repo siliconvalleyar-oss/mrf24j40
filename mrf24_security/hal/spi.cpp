@@ -9,6 +9,7 @@
 #include <hal/spi.hpp>
 #include <stdexcept>
 #include <cstring>
+#include <cstdio>
 #include <cerrno>
 #include <fcntl.h>
 #include <unistd.h>

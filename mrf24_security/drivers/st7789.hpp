@@ -15,6 +15,7 @@
 #include <drivers/graphics_base.hpp>
 #include <hal/spi.hpp>
 #include <memory>
+#include <string_view>
 #include <vector>
 
 namespace drivers {

@@ -15,6 +15,7 @@
 #include <drivers/graphics_base.hpp>
 #include <hal/i2c.hpp>
 #include <memory>
+#include <string_view>
 #include <vector>
 
 namespace drivers {
