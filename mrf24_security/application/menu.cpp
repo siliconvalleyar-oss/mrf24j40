@@ -592,6 +592,7 @@ void Menu_t::optionValidationStats() {
     std::cout << "  Errores de hash:        " << stats.hash_errors << "\n";
     std::cout << "  Sin ruta de reenvío:    " << stats.routing_not_found << "\n";
     std::cout << "  Broadcasts reenviados:  " << stats.broadcasts_forwarded << "\n";
+    std::cout << "  Fuentes denegadas:      " << stats.source_denied << "\n";
 
     // Mostrar rol actual
     std::cout << "\n  Rol actual: ";
