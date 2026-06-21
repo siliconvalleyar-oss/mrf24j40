@@ -9,6 +9,8 @@
 #include <drivers/mrf24j40.hpp>
 #include <cstring>
 #include <cerrno>
+#include <unistd.h>
+#include <cstdio>
 
 namespace drivers {
 
@@ -78,7 +80,7 @@ Mrf24j40_t::~Mrf24j40_t() = default;
 // SPI de bajo nivel
 // ============================================================================
 
-uint8_t Mrf24j40_t::readShort(uint8_t addr) {
+uint8_t Mrf24j40_t::readShort(uint8_t addr) const {
     uint8_t tx[2] = {static_cast<uint8_t>((addr & 0x3F) << 1), 0x00};
     uint8_t rx[2] = {0, 0};
     m_spi->transfer(tx, rx, 2);
@@ -90,7 +92,7 @@ void Mrf24j40_t::writeShort(uint8_t addr, uint8_t val) {
     m_spi->transfer(tx, nullptr, 2);
 }
 
-uint8_t Mrf24j40_t::readLong(uint16_t addr) {
+uint8_t Mrf24j40_t::readLong(uint16_t addr) const {
     uint8_t tx[3] = {
         static_cast<uint8_t>(0x80 | ((addr >> 3) & 0x7F)),
         static_cast<uint8_t>((addr & 0x07) << 5),

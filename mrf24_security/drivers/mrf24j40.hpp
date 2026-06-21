@@ -291,9 +291,9 @@ private:
     Mrf24Stats m_stats;
 
     // === Operaciones SPI de bajo nivel ===
-    uint8_t readShort(uint8_t addr);
+    uint8_t readShort(uint8_t addr) const;
     void    writeShort(uint8_t addr, uint8_t val);
-    uint8_t readLong(uint16_t addr);
+    uint8_t readLong(uint16_t addr) const;
     void    writeLong(uint16_t addr, uint8_t val);
 
     // === Inicialización ===

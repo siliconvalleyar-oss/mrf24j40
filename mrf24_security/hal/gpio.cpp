@@ -12,8 +12,10 @@
 #include <thread>
 #include <fcntl.h>
 #include <unistd.h>
+#include <poll.h>
 #include <cstring>
 #include <cerrno>
+#include <cstdio>
 
 namespace hal {
 
@@ -133,38 +135,38 @@ void Gpio_t::onInterrupt(std::function<void()> callback) {
     snprintf(path, sizeof(path), "/sys/class/gpio/gpio%d/value", m_pin);
 
     // Exportar si es necesario
-    int exp_fd = open("/sys/class/gpio/export", O_WRONLY);
+    int exp_fd = ::open("/sys/class/gpio/export", O_WRONLY);
     if (exp_fd >= 0) {
         char pin_str[8];
         snprintf(pin_str, sizeof(pin_str), "%d", m_pin);
-        write(exp_fd, pin_str, strlen(pin_str));
-        close(exp_fd);
+        ::write(exp_fd, pin_str, strlen(pin_str));
+        ::close(exp_fd);
         usleep(100000); // Esperar a que sysfs cree los archivos
     }
 
     // Configurar dirección como entrada
     snprintf(path, sizeof(path), "/sys/class/gpio/gpio%d/direction", m_pin);
-    int dir_fd = open(path, O_WRONLY);
+    int dir_fd = ::open(path, O_WRONLY);
     if (dir_fd >= 0) {
-        write(dir_fd, "in", 2);
-        close(dir_fd);
+        ::write(dir_fd, "in", 2);
+        ::close(dir_fd);
     }
 
     // Configurar flanco
     snprintf(path, sizeof(path), "/sys/class/gpio/gpio%d/edge", m_pin);
-    int edge_fd = open(path, O_WRONLY);
+    int edge_fd = ::open(path, O_WRONLY);
     if (edge_fd >= 0) {
         const char* edge_str = "both";
         if (m_direction == GpioDirection::Input) {
             // Configurar según el edge del constructor
         }
-        write(edge_fd, edge_str, strlen(edge_str));
-        close(edge_fd);
+        ::write(edge_fd, edge_str, strlen(edge_str));
+        ::close(edge_fd);
     }
 
     // Abrir value para poll()
     snprintf(path, sizeof(path), "/sys/class/gpio/gpio%d/value", m_pin);
-    m_fd = open(path, O_RDONLY | O_NONBLOCK);
+    m_fd = ::open(path, O_RDONLY | O_NONBLOCK);
     if (m_fd < 0) return;
 
     // Iniciar hilo de monitoreo
@@ -176,10 +178,10 @@ void Gpio_t::onInterrupt(std::function<void()> callback) {
 
         char buf[16];
         while (m_irq_running) {
-            int ret = poll(&pfd, 1, 100); // timeout 100ms
+            int ret = ::poll(&pfd, 1, 100); // timeout 100ms
             if (ret > 0 && (pfd.revents & POLLPRI)) {
-                lseek(m_fd, 0, SEEK_SET);
-                read(m_fd, buf, sizeof(buf));
+                ::lseek(m_fd, 0, SEEK_SET);
+                ::read(m_fd, buf, sizeof(buf));
                 if (callback) callback();
             }
         }
