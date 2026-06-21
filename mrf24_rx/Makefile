@@ -1,5 +1,5 @@
 # =============================================================================
-# Makefile — MRF24J40 Receptor (mrf24_rx)
+# Makefile - MRF24J40 Receptor (mrf24_rx)
 # =============================================================================
 # Compilador y flags base
 CXX       := g++
@@ -39,7 +39,7 @@ ifeq ($(MYSQL_AVAILABLE),yes)
     LIBS += -lmysqlcppconn
     CXXFLAGS += -DENABLE_DATABASE
 else
-    $(info [BUILD] MySQL Connector NO detectado — funcionalidad de BD deshabilitada)
+    $(info [BUILD] MySQL Connector NO detectado - funcionalidad de BD deshabilitada)
 endif
 
 # libqrencode (QR)
@@ -49,7 +49,7 @@ ifeq ($(QR_AVAILABLE),yes)
     LIBS += -lqrencode
     CXXFLAGS += -DUSE_QR
 else
-    $(info [BUILD] libqrencode NO detectado — generación de QR deshabilitada)
+    $(info [BUILD] libqrencode NO detectado - generación de QR deshabilitada)
 endif
 
 # libpng
@@ -77,7 +77,7 @@ ifeq ($(MOSQ_AVAILABLE),yes)
     LIBS += -lmosquitto
     CXXFLAGS += -DENABLE_MQTT
 else
-    $(info [BUILD] libmosquitto NO detectado — MQTT deshabilitado)
+    $(info [BUILD] libmosquitto NO detectado - MQTT deshabilitado)
     # Fallback: intentar linkear directamente
     MOSQ_LIB := $(shell ldconfig -p 2>/dev/null | grep libmosquitto.so | head -1 | awk '{print $$NF}')
     ifneq ($(strip $(MOSQ_LIB)),)
@@ -132,10 +132,10 @@ TARGET := $(BIN_DIR)/mrf24_transmitter
 
 all: directories $(TARGET)
 	@echo ""
-	@echo "  ╔══════════════════════════════════════════╗"
-	@echo "  ║  MRF24J40 RECEPTOR — COMPILACIÓN OK     ║"
-	@echo "  ║  Ejecutar: sudo ./$(TARGET)              ║"
-	@echo "  ╚══════════════════════════════════════════╝
+	@echo "  +------------------------------------------+"
+	@echo "  |  MRF24J40 RECEPTOR - COMPILACIÓN OK     |"
+	@echo "  |  Ejecutar: sudo ./$(TARGET)              |"
+	@echo "  +------------------------------------------+
 
 # Directorios de salida
 directories:

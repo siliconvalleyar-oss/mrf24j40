@@ -200,6 +200,23 @@ Los proyectos ahora incluyen un **puente radio ⟷ MQTT** (solo compila si `libm
 
 ---
 
+## 🧠 Guías de Herramientas (SKILL.md)
+
+Cada proyecto incluye un archivo `SKILL.md` que funciona como **guía rápida de herramientas,
+técnicas y flujo de trabajo** para ese proyecto. Es el punto de entrada recomendado
+para entender cómo trabajar con cada componente.
+
+| Proyecto | SKILL.md | Contenido principal |
+|----------|----------|---------------------|
+| 🌐 **Dashboard** | [`mrf24-dashboard/SKILL.md`](mrf24-dashboard/SKILL.md) | Stack frontend (HTML/CSS/JS, highlight.js, marked.js, Canvas, SVG animaciones), técnicas de desarrollo C++ embebido, git workflow, estilo de código, protocolo seguro v2.0.3, enrutamiento con TTL, JSON persistente |
+| 🚀 **Transmisor** | [`mrf24_tx/SKILL.md`](mrf24_tx/SKILL.md) | Stack, comandos, estructura de archivos, GPIO, configuración, estadísticas, flujo TX, protocolo 802.15.4, MQTT, técnicas (driver simplificado vs completo, polling, Makefile auto-detección) |
+| 📡 **Receptor** | [`mrf24_rx/SKILL.md`](mrf24_rx/SKILL.md) | Stack, comandos RX, estructura, GPIO, configuración (OLED, DB), estadísticas, flujo RX con extracción LQI/RSSI, log CSV, MQTT, técnicas (polling RX, OLED 4 líneas, log rotativo) |
+
+> 💡 **Consejo:** Si eres nuevo en el proyecto, empieza por el `SKILL.md` del componente
+> que te interese. Contiene atajos, trucos y referencias que no están en los README.
+
+---
+
 ## 📚 Documentación por Proyecto
 
 | Proyecto | README | Skill | API | Arquitectura | Configuración |
