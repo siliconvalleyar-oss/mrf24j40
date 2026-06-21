@@ -1,11 +1,11 @@
 /*!
  * @file decrypt.cpp
- * @brief Funciones de descifrado AES-256
- * @details Provee las funciones de descifrado simétrico usando AES-256.
- *   Actualmente el namespace SECURITY está preparado para la implementación
- *   de los algoritmos de desencriptación.
+ * @brief Preparación para funciones de descifrado AES-256 (pendiente de implementación)
+ * @details Namespace SECURITY preparado para la implementación futura
+ *   de los algoritmos de descifrado simétrico AES-256.
  * @author MRF24J40 Team
  * @date 2026
+ * @version 2.0.1
  */
 
 #include <security/aes.hpp>
