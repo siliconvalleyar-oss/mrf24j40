@@ -411,7 +411,14 @@ ValidationResult RadioManager_t::validateMessage(const uint8_t* rawMessage, uint
 
     // 9. Verificar destino
     uint64_t local_mac = macToUint64(m_config.mac_address);
-    if (dest_mac == BROADCAST_ADDR || dest_mac == local_mac) {
+    if (dest_mac == BROADCAST_ADDR) {
+        // Broadcast: todos los nodos procesan localmente
+        result.for_us = true;
+        // Los routers reenvían a todos los nodos (con TTL para evitar loops)
+        if (canForward() && result.ttl > 1) {
+            result.should_forward = true;
+        }
+    } else if (dest_mac == local_mac) {
         result.for_us = true;
     } else if (canForward()) {
         result.should_forward = true;
@@ -532,8 +539,12 @@ bool RadioManager_t::sendMessage(const std::array<uint8_t, 8>& dest_mac,
         tx_data = plaintext;
     }
 
-    // 2. Construir trama segura con hash
-    auto secure_frame = buildSecureMessage(dest_mac, iv, tx_data, DEFAULT_TTL);
+    // 2. Determinar TTL según tipo de mensaje
+    uint64_t dest64 = macToUint64(dest_mac);
+    uint8_t ttl = (dest64 == BROADCAST_ADDR) ? BROADCAST_TTL : DEFAULT_TTL;
+
+    // 3. Construir trama segura con hash
+    auto secure_frame = buildSecureMessage(dest_mac, iv, tx_data, ttl);
 
     // 3. Enviar
     bool ok = m_radio->send(dest_mac, secure_frame.data(),
@@ -600,7 +611,21 @@ void RadioManager_t::process() {
             return;
         }
 
-        // 2. Si debe reenviarse
+        // 2. Si es broadcast (for_us + should_forward), procesar local primero
+        if (validation.for_us && validation.should_forward &&
+            validation.dest_mac == BROADCAST_ADDR) {
+            log("Broadcast received, processing locally and re-broadcasting",
+                services::LogLevel::Info);
+            processMessage(buf, len, validation);
+
+            // Reenviar broadcast a todos los nodos (TTL se decrementa en forwardMessage)
+            std::vector<uint8_t> msg(buf, buf + len);
+            forwardMessage(msg, BROADCAST_ADDR);
+            m_validation_stats.broadcasts_forwarded++;
+            return;
+        }
+
+        // 3. Si debe reenviarse (unicast)
         if (validation.should_forward) {
             log("Message needs forwarding", services::LogLevel::Info);
 
@@ -625,66 +650,12 @@ void RadioManager_t::process() {
             return;
         }
 
-        // 3. Si es para nosotros, descifrar
+        // 4. Si es para nosotros (unicast), descifrar
         if (validation.for_us) {
-            // Construir ciphertext_with_iv como espera decrypt()
-            std::vector<uint8_t> ciphertext_with_iv;
-            ciphertext_with_iv.reserve(validation.iv.size() + validation.ciphertext.size());
-            ciphertext_with_iv.insert(ciphertext_with_iv.end(),
-                                      validation.iv.begin(), validation.iv.end());
-            ciphertext_with_iv.insert(ciphertext_with_iv.end(),
-                                      validation.ciphertext.begin(),
-                                      validation.ciphertext.end());
-
-            if (m_config.enable_encryption && m_crypto) {
-                auto result = m_crypto->decrypt(ciphertext_with_iv);
-                if (result.success) {
-                    m_last_message.assign(result.data.begin(), result.data.end());
-                    m_message_ready = true;
-
-                    // Callback
-                    std::string sender_str = "0x" + macToHex(validation.src_mac);
-
-                    if (m_msg_callback) {
-                        m_msg_callback(sender_str, m_last_message,
-                                       m_radio->lastLqi(), m_radio->lastRssi());
-                    }
-
-                    // Mostrar en OLED
-                    if (m_oled_ok && m_oled) {
-                        m_oled->clear();
-                        m_oled->drawString(0, 0,
-                            "MSG #" + std::to_string(m_packet_count), 1, true);
-                        if (m_last_message.length() > 20) {
-                            m_oled->drawString(0, 16,
-                                m_last_message.substr(0, 20), 1, true);
-                            m_oled->drawString(0, 32,
-                                m_last_message.substr(20, 20), 1, true);
-                        } else {
-                            m_oled->drawString(0, 16, m_last_message, 1, true);
-                        }
-                        m_oled->drawString(0, 48,
-                            "LQI:" + std::to_string(m_radio->lastLqi()) +
-                            " RSSI:" + std::to_string(m_radio->lastRssi()) + "dBm",
-                            1, true);
-                        m_oled->update();
-                    }
-
-                    log("Decrypted: " + m_last_message +
-                        " (from 0x" +macToHex(validation.src_mac) + ")");
-                } else {
-                    log("Decryption failed: " + result.error_msg,
-                        services::LogLevel::Error);
-                }
-            } else {
-                // Sin cifrado
-                m_last_message.assign(validation.ciphertext.begin(),
-                                      validation.ciphertext.end());
-                m_message_ready = true;
-            }
+            processMessage(buf, len, validation);
         }
 
-        // 4. Log a archivo
+        // 5. Log a archivo
         if (m_fs) {
             std::string hex;
             char tmp[4];
@@ -790,6 +761,72 @@ void RadioManager_t::clearLog() {
 void RadioManager_t::log(std::string_view msg, services::LogLevel level) {
     if (m_fs) {
         m_fs->log(msg, level);
+    }
+}
+
+// ============================================================================
+// Procesamiento interno de mensajes validados
+// ============================================================================
+
+void RadioManager_t::processMessage(const uint8_t* buf, uint8_t len,
+                                     const ValidationResult& validation) {
+    (void)buf;
+    (void)len;
+
+    // Construir ciphertext_with_iv como espera decrypt()
+    std::vector<uint8_t> ciphertext_with_iv;
+    ciphertext_with_iv.reserve(validation.iv.size() + validation.ciphertext.size());
+    ciphertext_with_iv.insert(ciphertext_with_iv.end(),
+                              validation.iv.begin(), validation.iv.end());
+    ciphertext_with_iv.insert(ciphertext_with_iv.end(),
+                              validation.ciphertext.begin(),
+                              validation.ciphertext.end());
+
+    if (m_config.enable_encryption && m_crypto) {
+        auto result = m_crypto->decrypt(ciphertext_with_iv);
+        if (result.success) {
+            m_last_message.assign(result.data.begin(), result.data.end());
+            m_message_ready = true;
+
+            // Callback
+            std::string sender_str = "0x" + macToHex(validation.src_mac);
+
+            if (m_msg_callback) {
+                m_msg_callback(sender_str, m_last_message,
+                               m_radio->lastLqi(), m_radio->lastRssi());
+            }
+
+            // Mostrar en OLED
+            if (m_oled_ok && m_oled) {
+                m_oled->clear();
+                m_oled->drawString(0, 0,
+                    "MSG #" + std::to_string(m_packet_count), 1, true);
+                if (m_last_message.length() > 20) {
+                    m_oled->drawString(0, 16,
+                        m_last_message.substr(0, 20), 1, true);
+                    m_oled->drawString(0, 32,
+                        m_last_message.substr(20, 20), 1, true);
+                } else {
+                    m_oled->drawString(0, 16, m_last_message, 1, true);
+                }
+                m_oled->drawString(0, 48,
+                    "LQI:" + std::to_string(m_radio->lastLqi()) +
+                    " RSSI:" + std::to_string(m_radio->lastRssi()) + "dBm",
+                    1, true);
+                m_oled->update();
+            }
+
+            log("Decrypted: " + m_last_message +
+                " (from 0x" + macToHex(validation.src_mac) + ")");
+        } else {
+            log("Decryption failed: " + result.error_msg,
+                services::LogLevel::Error);
+        }
+    } else {
+        // Sin cifrado
+        m_last_message.assign(validation.ciphertext.begin(),
+                              validation.ciphertext.end());
+        m_message_ready = true;
     }
 }
 

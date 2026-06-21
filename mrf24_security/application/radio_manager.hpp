@@ -33,6 +33,9 @@ namespace application {
 /** @brief TTL máximo por defecto para mensajes. */
 constexpr uint8_t DEFAULT_TTL = 10;
 
+/** @brief TTL fijo para mensajes broadcast. Bajo para evitar flooding infinito. */
+constexpr uint8_t BROADCAST_TTL = 3;
+
 /** @brief Dirección de broadcast (todos los nodos). */
 constexpr uint64_t BROADCAST_ADDR = 0xFFFFFFFFFFFFFFFFULL;
 
@@ -70,6 +73,7 @@ struct ValidationStats {
     uint32_t role_mismatch       = 0;  ///< Mensajes ignorados por rol (EndDevice)
     uint32_t hash_errors         = 0;  ///< Errores de hash SHA-256
     uint32_t routing_not_found   = 0;  ///< Sin ruta para reenviar
+    uint32_t broadcasts_forwarded = 0;  ///< Broadcasts reenviados a todos los nodos
 };
 
 /**
@@ -429,6 +433,15 @@ private:
 
     // === Internos ===
     void setupRadio();
+
+    /**
+     * @brief Procesa un mensaje validado localmente (descifra, muestra, callback).
+     * @param buf        Buffer del paquete original.
+     * @param len        Longitud del paquete.
+     * @param validation Resultado de la validación ya procesado.
+     */
+    void processMessage(const uint8_t* buf, uint8_t len, const ValidationResult& validation);
+
     void log(std::string_view msg, services::LogLevel level = services::LogLevel::Info);
 
     /**

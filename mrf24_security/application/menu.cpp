@@ -515,6 +515,7 @@ void Menu_t::optionValidationStats() {
     std::cout << "  Role mismatches:        " << stats.role_mismatch << "\n";
     std::cout << "  Errores de hash:        " << stats.hash_errors << "\n";
     std::cout << "  Sin ruta de reenvío:    " << stats.routing_not_found << "\n";
+    std::cout << "  Broadcasts reenviados:  " << stats.broadcasts_forwarded << "\n";
 
     // Mostrar rol actual
     std::cout << "\n  Rol actual: ";
