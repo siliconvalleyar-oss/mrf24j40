@@ -202,12 +202,9 @@ echo -e "  ${BOLD}║${NC}     FALLÓ:  ${RED}$FAIL_COUNT${NC}                  
 echo -e "  ${BOLD}║${NC}                                                           ${BOLD}║${NC}"
 
 # Mostrar tabla resumen
-echo -e "  ${BOLD}║${NC}  Tests:                                                ${BOLD}║${NC}"
-for i in "${!TEST_BINS[@]}"; do
-    local binpath="$TEST_BIN_DIR/${TEST_BINS[$i]}"
+echo -e "  ${BOLD}║${NC}  Tests:                                                ${BOLD}║${NC}"for i in "${!TEST_BINS[@]}"; do
+    binpath="$TEST_BIN_DIR/${TEST_BINS[$i]}"
     if [[ -f "$binpath" ]]; then
-        # Extraer resumen de la salida del test (últimas líneas relevantes)
-        # Buscar en la salida capturada no es fácil aquí, mejor mostrar desde archivo
         echo -e "  ${BOLD}║${NC}    $((i+1)). ${TEST_NAMES[$i]}"
         echo -e "  ${BOLD}║${NC}       ${YELLOW}${TEST_BINS[$i]}${NC}                           ${BOLD}║${NC}"
     fi
