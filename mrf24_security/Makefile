@@ -58,9 +58,19 @@ DEPS := $(OBJS:.o=.d)
 TARGET := $(BIN_DIR)/mrf24j40_iot
 
 # -----------------------------------------------------------
+# Tests
+# -----------------------------------------------------------
+TEST_SRC := tests/test_whitelist.cpp
+TEST_OBJ := $(OBJ_DIR)/tests/test_whitelist.o
+TEST_BIN := tests/test_whitelist
+
+# Objetos del proyecto (sin main) para linkear con tests
+PROJECT_OBJS := $(filter-out $(OBJ_DIR)/main.o, $(OBJS))
+
+# -----------------------------------------------------------
 # Reglas
 # -----------------------------------------------------------
-.PHONY: all directories clean info
+.PHONY: all directories clean info test
 
 all: directories $(TARGET)
 	@echo ""
@@ -83,8 +93,25 @@ $(OBJ_DIR)/%.o: %.cpp
 -include $(DEPS)
 
 clean:
-	@rm -rf $(OBJ_DIR) $(BIN_DIR)
+	@rm -rf $(OBJ_DIR) $(BIN_DIR) $(TEST_BIN)
 	@echo "  → Limpieza completada"
+
+$(TEST_BIN): $(TEST_OBJ) $(PROJECT_OBJS)
+	$(CXX) -o $@ $(TEST_OBJ) $(PROJECT_OBJS) $(LDFLAGS) $(LIBS)
+	@echo "  → Test: $@"
+
+$(OBJ_DIR)/tests/%.o: tests/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(INC_FLAGS) -MMD -MP -c $< -o $@
+
+-include $(OBJ_DIR)/tests/test_whitelist.d
+
+test: directories $(TEST_BIN)
+	@echo ""
+	@echo "  ╔══════════════════════════════════════════╗"
+	@echo "  ║  UNIT TESTS — COMPILADOS                ║"
+	@echo "  ║  Ejecutar: sudo ./$(TEST_BIN)           ║"
+	@echo "  ╚══════════════════════════════════════════╝"
 
 info:
 	@echo "Compilador : $(CXX)"
@@ -92,3 +119,4 @@ info:
 	@echo "Librerías  : $(LIBS)"
 	@echo "Fuentes    : $(words $(SRCS)) archivos"
 	@echo "Target     : $(TARGET)"
+	@echo "Test       : $(TEST_BIN)"
