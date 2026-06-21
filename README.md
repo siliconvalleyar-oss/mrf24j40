@@ -1,39 +1,51 @@
-# MRF24J40 - Transmisor y Receptor ZigBee para Raspberry Pi
+# MRF24J40 — Transmisor y Receptor ZigBee para Raspberry Pi
 
-Proyecto C++ para comunicación inalámbrica usando el módulo **MRF24J40MA** en Raspberry Pi.
+Proyecto C++ para comunicación inalámbrica usando el módulo **MRF24J40MA** en Raspberry Pi con soporte **MQTT**.
 
 ## 📦 Estructura del Proyecto
 
 ```
 ├── .gitignore
-├── Makefile                  # Makefile principal (proyecto completo)
+├── Makefile                  # Makefile principal
 ├── README.md
+├── TODO.md                   # Tareas globales del sistema
+├── VERSION.txt               # Historial de versiones
 ├── flow/                     # Diagramas de comunicación (DrawIO)
 ├── scripts_tools/            # Scripts de instalación y desarrollo
-│   ├── install_tools.sh      # [NUEVO] Instalación consolidada de dependencias
-│   ├── dev_tools.sh          # [NUEVO] Herramientas de desarrollo unificadas
-│   ├── commands_mosquitto.sh # Comandos de referencia MQTT
-│   ├── rules.gdb             # Configuración de debug GDB
-│   └── ... (scripts originales mantenidos por compatibilidad)
 ├── mrf24_tx/                 # 🚀 PROYECTO TRANSMISOR
 │   ├── Makefile
+│   ├── SKILL.md              # Referencia rápida
+│   ├── docs/                 # Documentación (API, Arquitectura, Config)
 │   ├── src/
-│   │   ├── main.cpp          # Punto de entrada del transmisor
-│   │   └── mrf24j40.cpp      # Driver MRF24J40 (SPI + ZigBee)
+│   │   ├── main.cpp
+│   │   ├── mrf24j40.h        # Driver simplificado
+│   │   ├── radio/            # Lógica de radio de alto nivel
+│   │   ├── mrf24/            # Driver completo MRF24J40
+│   │   ├── mosquitto/        # 🔸 MQTT (mqtt_handler, mqtt_bridge)
+│   │   ├── config/           # Configuración
+│   │   ├── spi/              # SPI
+│   │   ├── gpio/             # GPIO
+│   │   ├── oled/             # OLED SSD1306
+│   │   ├── display/          # E-paper
+│   │   ├── qr/               # QR
+│   │   ├── security/         # AES
+│   │   ├── file/             # Archivos y DB
+│   │   ├── interrupt/        # Interrupciones
+│   │   ├── tyme/             # Tiempo
+│   │   └── work/             # Utilidades
 │   └── include/
 └── mrf24_rx/                 # 📡 PROYECTO RECEPTOR
     ├── Makefile
-    ├── src/
-    │   ├── main.cpp           # Punto de entrada del receptor
-    │   └── mrf24j40.cpp       # Driver MRF24J40 (SPI + ZigBee)
-    └── include/
+    ├── SKILL.md
+    ├── docs/
+    └── ... (misma estructura que mrf24_tx)
 ```
 
 ---
 
 ## 🚀 Proyecto Transmisor (`mrf24_tx/`)
 
-Envia paquetes de datos a través del módulo MRF24J40MA usando protocolo ZigBee.
+Envía paquetes de datos a través del módulo MRF24J40MA usando protocolo ZigBee, con publicación de estado vía MQTT.
 
 | Parámetro       | Valor  |
 |-----------------|--------|
@@ -43,14 +55,10 @@ Envia paquetes de datos a través del módulo MRF24J40MA usando protocolo ZigBee
 | Canal           | 24 |
 | Intervalo       | 2000 ms |
 
-**Compilar:**
+**Compilar y ejecutar:**
 ```bash
 cd mrf24_tx
 make
-```
-
-**Ejecutar:**
-```bash
 sudo ./bin/mrf24_transmitter
 ```
 
@@ -58,7 +66,7 @@ sudo ./bin/mrf24_transmitter
 
 ## 📡 Proyecto Receptor (`mrf24_rx/`)
 
-Recibe paquetes de datos del transmisor y muestra la información recibida.
+Recibe paquetes de datos del transmisor, los muestra y los traduce a eventos MQTT.
 
 | Parámetro       | Valor  |
 |-----------------|--------|
@@ -66,14 +74,10 @@ Recibe paquetes de datos del transmisor y muestra la información recibida.
 | Dirección propia | `0x6002` |
 | Canal           | 24 |
 
-**Compilar:**
+**Compilar y ejecutar:**
 ```bash
 cd mrf24_rx
 make
-```
-
-**Ejecutar:**
-```bash
 sudo ./bin/mrf24_receiver
 ```
 
@@ -84,10 +88,10 @@ sudo ./bin/mrf24_receiver
 ### Instalación Rápida
 
 ```bash
-# Instalar todo
+# Todo en uno
 ./scripts_tools/install_tools.sh all
 
-# O instalar por partes:
+# O por partes:
 ./scripts_tools/install_tools.sh basics     # Dependencias básicas
 ./scripts_tools/install_tools.sh bcm2835    # Librería BCM2835
 ./scripts_tools/install_tools.sh mosquitto  # Mosquitto MQTT
@@ -97,52 +101,13 @@ sudo ./bin/mrf24_receiver
 
 ### Dependencias del Sistema
 
-- **BCM2835** - Librería GPIO/SPI para Raspberry Pi
-- **libpng-dev / zlib1g-dev** - Procesamiento de imágenes PNG
-- **qrencode** - Generación de códigos QR
-- **libmosquitto-dev** - Cliente MQTT
-- **libmysqlcppconn-dev** - Conector MySQL/MariaDB
-- **libssl-dev** - Criptografía
-- **SSD1306_OLED_RPI** - Librería para display OLED (opcional)
-
----
-
-## 🛠️ Herramientas de Desarrollo
-
-### Script Unificado
-
-```bash
-# Ver ayuda
-./scripts_tools/dev_tools.sh
-
-# Gestión de GPIO
-./scripts_tools/dev_tools.sh gpio settings   # Configurar pines MRF24J40
-./scripts_tools/dev_tools.sh gpio list       # Listar estado de GPIOs
-./scripts_tools/dev_tools.sh gpio output_low # Resetear GPIOs
-
-# Servicio Mosquitto
-./scripts_tools/dev_tools.sh mosquitto status
-./scripts_tools/dev_tools.sh mosquitto start|stop|restart
-
-# Compilar proyectos
-./scripts_tools/dev_tools.sh build tx        # Compilar transmisor
-./scripts_tools/dev_tools.sh build rx        # Compilar receptor
-./scripts_tools/dev_tools.sh build all       # Compilar ambos
-
-# Utilidades Git
-./scripts_tools/dev_tools.sh git commit      # Commit automático
-./scripts_tools/dev_tools.sh git certificate # Configurar SSH GitHub
-
-# Configurar swap
-./scripts_tools/dev_tools.sh swap create     # Crear swap 512MB
-
-# Debug
-./scripts_tools/dev_tools.sh debug           # GDB con reglas
-```
-
-### Scripts Originales
-
-Los scripts originales se mantienen por compatibilidad. Se recomienda usar `install_tools.sh` y `dev_tools.sh`.
+- **BCM2835** — GPIO/SPI para Raspberry Pi
+- **libmosquitto-dev** — Cliente MQTT (nuevo en v2.0.2)
+- **libpng-dev / zlib1g-dev** — Procesamiento de imágenes
+- **qrencode** — Generación de QR
+- **libmysqlcppconn-dev** — MySQL (opcional)
+- **libssl-dev** — Criptografía
+- **SSD1306_OLED_RPI** — OLED (opcional)
 
 ---
 
@@ -162,26 +127,45 @@ Pines utilizados por el MRF24J40:
 
 ---
 
-## 📡 Comunicación
+## 📡 MQTT (Mosquitto)
 
-### Verificación Rápida
+Los proyectos ahora incluyen un **puente radio ⟷ MQTT** (solo compila si `libmosquitto` está instalado).
 
-**Terminal 1 (Receptor):**
+### Topics
+
+| Topic | Dirección | Formato |
+|-------|-----------|---------|
+| `domotics/{device}/set` | RX ← MQTT | `{"command": "on"}` |
+| `domotics/{device}/status` | RX → MQTT | `{"isOn": true, "value": 0}` |
+| `domotics/zigbee/rx` | RX → MQTT | `{"data": "hex..."}` |
+
+### Clases implementadas
+
+| Clase | Archivo | Propósito |
+|-------|---------|-----------|
+| `MqttHandler` | `mosquitto/mqtt_handler.hpp` | Conexión async, reconexión automática |
+| `MqttBridge` | `mosquitto/mqtt_bridge.hpp` | Traduce comandos MQTT ↔ GPIO y radio |
+
+---
+
+## 🛠️ Herramientas de Desarrollo
+
 ```bash
-sudo ./mrf24_rx/bin/mrf24_receiver
+./scripts_tools/dev_tools.sh                 # Ver ayuda
+./scripts_tools/dev_tools.sh build tx        # Compilar transmisor
+./scripts_tools/dev_tools.sh build rx        # Compilar receptor
+./scripts_tools/dev_tools.sh gpio settings   # Configurar pines
+./scripts_tools/dev_tools.sh mosquitto status # Estado MQTT
 ```
 
-**Terminal 2 (Transmisor):**
-```bash
-sudo ./mrf24_tx/bin/mrf24_transmitter
-```
+---
 
-### Configuración SSH Segura
+## 📚 Documentación por Proyecto
 
-```bash
-ssh-keygen -t rsa
-ssh-copy-id root@127.0.0.1
-```
+| Proyecto | README | Skill | API | Arquitectura | Configuración |
+|----------|--------|-------|-----|-------------|---------------|
+| Transmisor | [`mrf24_tx/README.md`](mrf24_tx/README.md) | [`SKILL.md`](mrf24_tx/SKILL.md) | [`docs/API.md`](mrf24_tx/docs/API.md) | [`docs/ARCHITECTURE.md`](mrf24_tx/docs/ARCHITECTURE.md) | [`docs/CONFIGURATION.md`](mrf24_tx/docs/CONFIGURATION.md) |
+| Receptor | [`mrf24_rx/README.md`](mrf24_rx/README.md) | [`SKILL.md`](mrf24_rx/SKILL.md) | [`docs/API.md`](mrf24_rx/docs/API.md) | [`docs/ARCHITECTURE.md`](mrf24_rx/docs/ARCHITECTURE.md) | [`docs/CONFIGURATION.md`](mrf24_rx/docs/CONFIGURATION.md) |
 
 ---
 
@@ -189,16 +173,11 @@ ssh-copy-id root@127.0.0.1
 
 | Versión | Cambios |
 |---------|---------|
-| 1.4     | Seguridad, ruteo, capas, modo sleep |
-| 1.3     | SPI/GPIO por BCM2835 |
-| 1.2     | ACK, epaper, encriptación, router/coordinator/end device |
-| 1.1     | Envío correcto con header, size, buffer, checksum |
-| 1.0.1   | Versión inicial |
-
----
-
-## 📖 Referencias
-
-- [Microchip MRF24J40MA](http://www.microchip.com/wwwproducts/Devices.aspx?dDocName=en535967)
-- [BCM2835 Library](http://www.airspayce.com/mikem/bcm2835/)
-- [SSD1306_OLED_RPI](https://github.com/gavinlyonsrepo/SSD1306_OLED_RPI)
+| **v2.0.2** | MQTT (mqtt_handler, mqtt_bridge), fix Makefiles, header mrf24j40.h, TODO.md, eliminar stubs vacíos |
+| **v2.0.1** | Comentarios Doxygen en todos los .cpp |
+| **v2.0.0** | Reestructuración: mrf24_tx/ y mrf24_rx/, Makefile con detección automática de librerías |
+| 1.4 | Seguridad, ruteo, capas, modo sleep |
+| 1.3 | SPI/GPIO por BCM2835 |
+| 1.2 | ACK, epaper, encriptación, router/coordinator/end device |
+| 1.1 | Envío correcto con header, size, buffer, checksum |
+| 1.0.1 | Versión inicial |

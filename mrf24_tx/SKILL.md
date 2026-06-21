@@ -1,4 +1,4 @@
-# SKILL — Transmisor MRF24J40 (`mrf24_tx/`)
+# 🧠 SKILL — Transmisor MRF24J40 (`mrf24_tx/`)
 
 Referencia rápida para trabajar con el proyecto transmisor.
 
@@ -10,10 +10,11 @@ Referencia rápida para trabajar con el proyecto transmisor.
 |------------------|---------------------------------|
 | Lenguaje         | C++17                           |
 | Compilador       | g++ / clang++                   |
-| Librerías        | BCM2835 (GPIO/SPI)              |
+| Librerías        | BCM2835 (GPIO/SPI), libmosquitto (MQTT) |
 | Hardware         | MRF24J40MA, Raspberry Pi, LED   |
 | Protocolo        | IEEE 802.15.4 (ZigBee PHY/MAC)  |
 | Comunicación     | SPI Modo 0, 10 MHz              |
+| MQTT             | mqtt_handler + mqtt_bridge      |
 | Arquitecturas    | armv7l, aarch64, x86_64         |
 
 ---
@@ -45,11 +46,13 @@ make clean
 | Archivo                        | Propósito                         |
 |--------------------------------|-----------------------------------|
 | `src/main.cpp`                 | Punto de entrada, bucle principal |
-| `src/mrf24j40.cpp`            | Driver simplificado MRF24J40      |
+| `src/mrf24j40.h`              | Driver simplificado MRF24J40      |
+| `src/mrf24j40.cpp`            | Implementación driver simplificado |
 | `include/config/config.hpp`    | Configuración global              |
 | `include/mrf24/mrf24j40.hpp`  | Driver completo (64-bit MAC)      |
-| `include/mrf24/mrf24j40_cmd.hpp` | Definición de registros        |
-| `Makefile`                     | Compilación                       |
+| `src/mosquitto/mqtt_handler.*` | 🔸 Cliente MQTT                   |
+| `src/mosquitto/mqtt_bridge.*`  | 🔸 Puente radio ⟷ MQTT           |
+| `Makefile`                     | Compilación con detección automática |
 
 ## 🔌 GPIO
 
@@ -64,13 +67,10 @@ make clean
 ## ⚙️ Configuración Rápida (config.hpp)
 
 ```cpp
-// Para cambiar canal (11-26):
-#define CHANNEL 20
-
-// Para cambiar direcciones:
-#define ADDRESS     0x6001   // Dirección propia
-#define ADDR_SLAVE  0x6002   // Dirección destino
-#define PAN_ID      0x1234   // Pan ID (debe coincidir con RX)
+#define CHANNEL     20     // Canal (11-26)
+#define ADDRESS     0x6001 // Dirección propia
+#define ADDR_SLAVE  0x6002 // Dirección destino
+#define PAN_ID      0x1234 // Pan ID (debe coincidir con RX)
 ```
 
 ## 📊 Estadísticas
@@ -83,19 +83,28 @@ El transmisor reporta:
 ## 🔄 Flujo de TX
 
 ```
-poll() → leer INTSTAT → si TXNIF → leer TXSTAT → éxito/fallo → LED blink
+poll() → leer INTSTAT → si TXNIF → leer TXSTAT → éxito/fallo → LED blink → publicar MQTT
 ```
+
+## 🔸 MQTT
+
+Si `libmosquitto` está instalado, el transmisor puede publicar:
+
+| Topic | Datos |
+|-------|-------|
+| `domotics/zigbee/tx/status` | `{"packets_sent": 10, "tx_success": 9, "rate": 90.0}` |
 
 ## 🐛 Debug
 
-Para más verbose, descomentar en config.hpp:
+Descomentar en `config.hpp` para más verbose:
+
 ```cpp
 #define DBG
 #define DBG_BUFFER
 #define DBG_SPI
 ```
 
-## 📚 Documentación Adicional
+## 📚 Documentación
 
 - [README.md](README.md)
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)

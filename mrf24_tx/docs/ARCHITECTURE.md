@@ -3,43 +3,48 @@
 ## Diagrama de Capas
 
 ```
-┌────────────────────────────────────────────────────┐
-│                   main.cpp                          │
-│  - Bucle principal                                  │
-│  - Comandos interactivos (n, b, s, q)              │
-│  - LED indicador GPIO12                             │
-└──────────────────────┬─────────────────────────────┘
+┌───────────────────────────────────────────────────────┐
+│                     main.cpp                           │
+│  - Bucle principal                                     │
+│  - Comandos interactivos (n, b, s, q)                 │
+│  - LED indicador GPIO12                                │
+│  - MQTT (MqttHandler + MqttBridge)                    │
+└──────────────────────┬────────────────────────────────┘
                        │
-┌──────────────────────▼─────────────────────────────┐
-│          Radio_t (radio/radio.cpp)                  │
-│  - Orquestación de TX                               │
-│  - Estadísticas                                     │
-│  - Interfaz con Mrf24j                              │
-└──────────────────────┬─────────────────────────────┘
+┌──────────────────────▼────────────────────────────────┐
+│          Radio_t (radio/radio.cpp)                     │
+│  - Orquestación de TX                                  │
+│  - Estadísticas                                        │
+│  - Interfaz con Mrf24j                                 │
+└──────────────────────┬────────────────────────────────┘
                        │
-┌──────────────────────▼─────────────────────────────┐
-│          Mrf24j (mrf24/mrf24j40.cpp)                │
-│  - Lógica ZigBee/IEEE 802.15.4                     │
-│  - Envío de tramas (send, send64)                   │
-│  - Manejo de interrupciones                         │
-└──────────────────────┬─────────────────────────────┘
+┌──────────────────────▼────────────────────────────────┐
+│          Mrf24j (mrf24/mrf24j40.cpp)                   │
+│  - Lógica ZigBee/IEEE 802.15.4                        │
+│  - Envío de tramas (send, send64)                      │
+│  - Manejo de interrupciones                            │
+│  - Template genérico send_template()                   │
+└──────────────────────┬────────────────────────────────┘
                        │
-┌──────────────────────▼─────────────────────────────┐
-│          Spi_t (spi/spi.cpp)                        │
-│  - Comunicación SPI con MRF24J40                   │
-│  - Transferencias de 1, 2 y 3 bytes                │
-└──────────────────────┬─────────────────────────────┘
-                       │
-               ┌───────▼───────┐
-               │   BCM2835     │
-               │   (hardware)  │
-               └───────────────┘
+          ┌────────────┴────────────┐
+          │                         │
+┌─────────▼─────────┐   ┌──────────▼──────────┐
+│   Spi_t (spi/spi)  │   │   MqttHandler        │
+│   Comunicación SPI │   │   MQTT async         │
+│                    │   │   MqttBridge         │
+│                    │   │   radio ⟷ MQTT       │
+└─────────┬─────────┘   └──────────┬──────────┘
+          │                         │
+   ┌──────▼──────┐           ┌─────▼─────┐
+   │   BCM2835   │           │ Mosquitto │
+   │  (hardware) │           │  (broker) │
+   └─────────────┘           └───────────┘
 ```
 
 ## Flujo de Transmisión
 
 ```
-1. main.cpp llama a radio.send()
+1. main.cpp llama a radio.send() o MqttBridge recibe comando MQTT
 2. Radio_t.build() prepara payload de 100 bytes
 3. Mrf24j::send() construye trama 802.15.4:
    - Header: 9 bytes (FCF + Seq + PAN + Dest + Src)
@@ -51,6 +56,7 @@
 7. Lee TXSTAT para verificar éxito/retransmisiones
 8. LED parpadea (GPIO12 HIGH/LOW)
 9. Actualiza estadísticas
+10. MqttBridge publica estado en MQTT
 ```
 
 ## Manejo de Interrupciones
@@ -59,8 +65,21 @@
 Mrf24j40::poll() {
     leer INTSTAT
     if (TXIF)  → handleTxIrq()  // TX completado
-    if (RXIF)  → handleRxIrq()  // Paquete recibido (modo promiscuo)
+    if (RXIF)  → handleRxIrq()  // Paquete recibido
 }
+```
+
+## Flujo MQTT
+
+```
+MqttHandler::begin()
+  → mosquitto_loop_start() en thread separado
+  → on_connect: subscribe a topics de comando
+  → on_message: MqttBridge::processCommand(deviceId, command)
+
+MqttBridge::processCommand("light_1", "on")
+  → setGpio(pin, HIGH)
+  → publishStatus("light_1", true, 0)
 ```
 
 ## Modos de Operación
@@ -71,23 +90,11 @@ Mrf24j40::poll() {
 
 ### Burst
 - Envía 10 paquetes rápidamente con 50 ms de separación
-- Incrementa contador interno `burst_count`
 - Útil para pruebas de throughput y fiabilidad
 
-### Estadísticas
-- Muestra tabla con paquetes enviados, éxito/fallo, retransmisiones
-- Accesible vía tecla `s`
-
-## Configuración Auto-detected (config.hpp)
-
-La arquitectura determina automáticamente:
-
-| Arquitectura | Define       | Comportamiento       |
-|-------------|--------------|----------------------|
-| ARM 32 bits | USE_MRF24_RX | Modo receptor        |
-| ARM 64 bits | USE_MRF24_TX | Modo transmisor      |
-| x86_64      | USE_MRF24_TX | Modo transmisor      |
-| macOS       | USE_MRF24_RX | Modo receptor (test) |
+### MQTT
+- Recibe comandos vía MQTT y los traduce a GPIO
+- Publica estadísticas TX periódicamente
 
 ## Registros Clave del MRF24J40
 

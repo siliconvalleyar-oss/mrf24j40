@@ -1,9 +1,6 @@
 # MRF24J40 Receptor — `mrf24_rx/`
 
-Proyecto C++ para **recibir** paquetes de datos usando el módulo **MRF24J40MA** (ZigBee/IEEE 802.15.4) en Raspberry Pi, con:
-- Indicador LED en GPIO12
-- Soporte opcional para display **OLED SSD1306**
-- **Logging** a archivo CSV de todos los paquetes recibidos
+Proyecto C++ para **recibir** paquetes de datos usando el módulo **MRF24J40MA** (ZigBee/IEEE 802.15.4) en Raspberry Pi, con soporte **MQTT**.
 
 ---
 
@@ -12,8 +9,8 @@ Proyecto C++ para **recibir** paquetes de datos usando el módulo **MRF24J40MA**
 - Raspberry Pi (cualquier modelo con SPI)
 - Módulo MRF24J40MA
 - LED + resistencia (opcional, GPIO12)
-- Display OLED SSD1306 (opcional, I²C)
 - **Librería BCM2835** (para GPIO y SPI)
+- **libmosquitto-dev** (para MQTT, opcional)
 
 ## 🔧 Compilación
 
@@ -21,6 +18,8 @@ Proyecto C++ para **recibir** paquetes de datos usando el módulo **MRF24J40MA**
 cd mrf24_rx
 make
 ```
+
+El Makefile detecta automáticamente las librerías instaladas (`libmosquitto`, `libqrencode`, `libpng`, `zlib`, MySQL).
 
 ## 🚀 Ejecución
 
@@ -39,97 +38,52 @@ Requiere `sudo` por el acceso a `/dev/spidev0.0`, `bcm2835` y GPIO.
 | Canal            | 20       | Canal IEEE 802.15.4 (11-26) |
 | LED indicador    | GPIO12   | Parpadea al recibir paquete |
 | Velocidad SPI    | 10 MHz   | `/dev/spidev0.0`            |
-| Log file         | `mrf24_receiver.log` | CSV de paquetes    |
-
-## 🎮 Comandos en Tiempo Real
-
-Durante la ejecución, puedes presionar:
-
-| Tecla | Acción                     |
-|-------|----------------------------|
-| `s`   | Mostrar estadísticas RX    |
-| `c`   | Limpiar/reiniciar stats    |
-| `q`   | Salir                      |
 
 ## 🧱 Estructura del Proyecto
 
 ```
 mrf24_rx/
-├── Makefile                  # Compilación del proyecto
-├── README.md                 # Esta documentación
-├── docs/                     # Documentación adicional
-│   ├── ARCHITECTURE.md       # Arquitectura del software
-│   ├── API.md                # Referencia de la API
-│   └── CONFIGURATION.md      # Guía de configuración
-├── obj/                      # Objetos compilados (gitignored)
-├── bin/                      # Binarios (gitignored)
-├── src/                      # Código fuente
+├── Makefile                  # Compilación con detección automática
+├── SKILL.md                  # Referencia rápida
+├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── API.md
+│   └── CONFIGURATION.md
+├── src/
 │   ├── main.cpp              # Punto de entrada
-│   ├── mrf24j40.cpp          # Driver MRF24J40 simplificado
 │   ├── mrf24j40.h            # Header del driver simplificado
+│   ├── mrf24j40.cpp          # Driver MRF24J40 simplificado
 │   ├── radio/                # Lógica de radio de alto nivel
-│   │   ├── run.cpp
-│   │   ├── radio.cpp
-│   │   └── data.hpp
 │   ├── mrf24/                # Driver MRF24J40 completo
-│   │   ├── mrf24j40.cpp
-│   │   ├── mrf24j40_send.cpp
-│   │   ├── mrf24j40_template.cpp
-│   │   ├── radio_trasnreceiver.cpp
-│   │   ├── radio.cpp
-│   │   └── zigbee_packet_handler.cpp
-│   ├── config/
-│   │   └── config.cpp
-│   ├── gpio/
-│   │   └── gpio.cpp
-│   ├── spi/
-│   │   ├── spi.cpp
-│   │   └── spi_dbg.cpp
-│   ├── oled/                 # Soporte OLED SSD1306
-│   │   └── oled/
-│   │       ├── SSD1306_OLED.cpp
-│   │       ├── SSD1306_OLED_graphics.cpp
-│   │       └── ...
-│   ├── display/
-│   │   └── epaper.cpp
-│   ├── qr/                   # Generación de códigos QR
-│   │   ├── qr.cpp
-│   │   ├── qr_img.cpp
-│   │   └── ff.cpp
-│   ├── security/             # Desencriptación AES
-│   │   ├── encrypt.cpp
-│   │   └── decrypt.cpp
-│   ├── file/                 # Manejo de archivos y DB
-│   │   ├── file.cpp
-│   │   └── database.cpp
-│   ├── interrupt/
-│   │   └── interrupt.cpp
-│   ├── tyme/
-│   │   └── tyme.cpp
-│   └── work/
-│       └── rfflush.cpp
-└── include/                  # Headers
+│   ├── mosquitto/            # 🔸 MQTT handler + bridge
+│   ├── config/               # Configuración
+│   ├── gpio/                 # GPIO
+│   ├── spi/                  # SPI
+│   ├── oled/                 # OLED SSD1306
+│   ├── display/              # E-paper
+│   ├── qr/                   # QR
+│   ├── security/             # AES
+│   ├── file/                 # Archivos y DB
+│   ├── interrupt/            # Interrupciones
+│   ├── tyme/                 # Tiempo
+│   └── work/                 # Utilidades
+└── include/
     ├── config/config.hpp     # Configuración global
     ├── mrf24/                # Headers del driver MRF24J40
-    │   ├── mrf24j40.hpp
-    │   ├── mrf24j40_cmd.hpp  # Definición de registros
-    │   ├── mrf24j40_settings.hpp
-    │   ├── mrf24j40_control_register.hpp
-    │   ├── mrf24j40_template.tpp
-    │   └── radio.hpp
+    ├── mosquitto/            # Headers MQTT
     ├── spi/spi.hpp
     ├── gpio/gpio.hpp
-    ├── radio/radio.hpp, run.hpp, data.hpp
-    ├── oled/                 # Headers OLED
-    ├── file/file.hpp, database.hpp
-    ├── qr/qr.hpp
-    ├── tyme/tyme.hpp
-    ├── work/work.hpp, data_analisis.hpp, rfflush.hpp
-    ├── display/color.hpp
-    └── security/aes.hpp
+    ├── radio/
+    ├── oled/
+    ├── file/
+    ├── qr/
+    ├── tyme/
+    ├── work/
+    ├── display/
+    └── security/
 ```
 
-## 🔌 Conexiones GPIO (MRF24J40 ↔ Raspberry Pi)
+## 🔌 Conexiones GPIO
 
 | Señal  | GPIO | Pin físico | Descripción              |
 |--------|------|------------|--------------------------|
@@ -142,32 +96,48 @@ mrf24_rx/
 | RESET  | 17   | 11         | Reset                    |
 | LED RX | 12   | 32         | Indicador de recepción   |
 
+## 🔸 MQTT
+
+Si `libmosquitto` está instalado, el receptor incluye:
+
+| Clase | Propósito |
+|-------|-----------|
+| `MqttHandler` | Cliente MQTT con reconexión automática |
+| `MqttBridge`  | Puente radio ↔ MQTT, traducción de comandos |
+
+**Topics de comando:**
+- `domotics/{light,temperature,fan,lock,curtain,energy,rgb}/set`
+- Formato: `{"command": "on", "value": 50}`
+
+**Topics de estado:**
+- `domotics/{device}/status` — Estado actual del dispositivo
+- `domotics/zigbee/rx` — Payload raw de radio recibido
+
 ## 📡 Protocolo
 
-El receptor usa **IEEE 802.15.4** con:
+IEEE 802.15.4 con direcciones cortas (16 bits), modo promiscuo, RSSI y LQI extraídos.
 
-- **Direcciones cortas** (16 bits)
-- **Payload variable** (hasta 100 bytes)
-- **ACK automático** (deshabilitado vía config)
-- **RSSI y LQI** extraídos de cada paquete
-- **Modo promiscuo** para recibir todos los paquetes
-- **CRC inválido aceptado** (configurable)
+## 📊 Estadísticas
 
-## 📊 Logging
+- Paquetes recibidos totales
+- LQI promedio
+- RSSI promedio (dBm)
 
-El receptor genera un archivo `mrf24_receiver.log` con formato CSV:
+## 📝 Logging
+
+El receptor genera `mrf24_receiver.log` con formato CSV:
 
 ```
 #timestamp,packet_num,payload_hex,len,lqi,rssi
 1712345678,1,00:01:02:03:...,100,200,-85
-1712345679,2,04:05:06:07:...,100,210,-83
 ```
 
 ---
 
 ## 📚 Más Información
 
+- [Referencia rápida (SKILL.md)](SKILL.md)
 - [Arquitectura del Software](docs/ARCHITECTURE.md)
 - [Referencia de la API](docs/API.md)
 - [Guía de Configuración](docs/CONFIGURATION.md)
-- [README principal (raíz del proyecto)](../README.md)
+- [README principal](../README.md)

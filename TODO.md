@@ -3,19 +3,27 @@
 ## Estado actual
 - **Último tag:** v2.0.2
 - **Rama:** v2.0.0
+- **Último commit:** `8359e7f` — eliminar stubs vacíos de mosquitto
 - **Arquitectura target:** Raspberry Pi (ARM aarch64 / armv7l)
 
 ---
 
 ## 📋 Tareas ambas proyectos (mrf24_tx + mrf24_rx)
 
-### Compilación
+### Compilación — Fixes aplicados
 - [x] Crear header `mrf24j40.h` (driver simplificado Mrf24j40)
 - [x] Corregir rutas de fuentes en Makefiles (`oled/oled.cpp`, `fonts/font5x7.cpp`)
-- [ ] **Compilar en Raspberry Pi** — `git pull && make clean && make -j4`
-- [ ] Corregir errores en `src/radio/radio.cpp` (scope `DATA` no declarado)
-- [ ] Corregir errores en `src/mrf24/mrf24j40_template.cpp` (template argumentos)
-- [ ] Corregir `-Wignored-qualifiers` en `spi.hpp`, `gpio.hpp`
+- [x] Eliminar `src/radio/data.hpp` (archivo vacío que shadoweaba a `include/radio/data.hpp`)
+- [x] Agregar `using Mrf24j_t = Mrf24j;` en `mrf24j40.hpp`
+- [x] Fix stray characters en `mrf24j40_template.cpp` (`*/` dentro de `/** */`)
+- [x] Agregar declaración `send_template` en header `mrf24j40.hpp`
+- [x] Fix constructor `GPIO::Gpio_t` — pasar `m_status`
+- [x] Eliminar stubs vacíos de mosquitto (0 bytes)
+- [x] Limpiar Makefiles (referencias a stubs eliminados)
+- [ ] **Pendiente:** `Mrf24j::settingsSecurity()` — método llamado pero no declarado
+- [ ] **Pendiente:** `Mrf24j::set_promiscuous()` es `protected` — Radio_t no puede accederlo
+- [ ] **Pendiente:** Corregir `-Wignored-qualifiers` en `spi.hpp`, `gpio.hpp`
+- [ ] **Pendiente:** Probar compilación completa en Raspberry Pi
 
 ### Documentación Doxygen
 - [x] `main.cpp` (ambos proyectos)
@@ -73,12 +81,11 @@
 ## 🧪 Testing en Raspberry Pi
 
 ```bash
-# 1. Pull y compilar
 cd /home/joy/src/mrf24j40/ && git pull
 cd mrf24_tx && make clean && make -j4
 cd ../mrf24_rx && make clean && make -j4
 
-# 2. Ejecutar con permisos
+# Ejecutar (requiere sudo)
 sudo ./mrf24_tx/bin/mrf24_transmitter
-sudo ./mrf24_rx/bin/mrf24_transmitter
+sudo ./mrf24_rx/bin/mrf24_receiver
 ```
