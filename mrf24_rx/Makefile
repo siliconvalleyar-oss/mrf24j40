@@ -101,14 +101,7 @@ SRCS := \
     $(SRC_DIR)/spi/spi.cpp \
     $(SRC_DIR)/spi/spi_dbg.cpp \
     $(SRC_DIR)/gpio/gpio.cpp \
-    $(SRC_DIR)/radio/radio.cpp \
-    $(SRC_DIR)/radio/run.cpp \
     $(SRC_DIR)/mrf24/mrf24j40.cpp \
-    $(SRC_DIR)/mrf24/mrf24j40_send.cpp \
-    $(SRC_DIR)/mrf24/mrf24j40_template.cpp \
-    $(SRC_DIR)/mrf24/radio_trasnreceiver.cpp \
-    $(SRC_DIR)/mrf24/radio.cpp \
-    $(SRC_DIR)/mrf24/zigbee_packet_handler.cpp \
     $(SRC_DIR)/file/file.cpp \
     $(SRC_DIR)/file/database.cpp \
     $(SRC_DIR)/qr/qr.cpp \
@@ -118,13 +111,11 @@ SRCS := \
     $(SRC_DIR)/interrupt/interrupt.cpp \
     $(SRC_DIR)/work/rfflush.cpp \
     $(SRC_DIR)/display/epaper.cpp \
-    $(SRC_DIR)/oled/oled.cpp \
     $(SRC_DIR)/oled/oled/SSD1306_OLED.cpp \
     $(SRC_DIR)/oled/oled/SSD1306_OLED_graphics.cpp \
     $(SRC_DIR)/oled/oled/SSD1306_OLED_Print.cpp \
     $(SRC_DIR)/oled/oled/SSD1306_OLED_font.cpp \
     $(SRC_DIR)/oled/oled/oled.cpp \
-    $(SRC_DIR)/fonts/font5x7.cpp \
     $(SRC_DIR)/mosquitto/mqtt_handler.cpp \
     $(SRC_DIR)/mosquitto/mqtt_bridge.cpp
 
