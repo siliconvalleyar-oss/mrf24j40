@@ -436,6 +436,11 @@ private:
      * @brief Convierte un uint64_t a array de 8 bytes MAC (big-endian).
      */
     static std::array<uint8_t, 8> uint64ToMac(uint64_t addr);
+
+    /**
+     * @brief Convierte MAC uint64_t a string hex (para logging).
+     */
+    static std::string macToHex(uint64_t addr);
 };
 
 } // namespace application

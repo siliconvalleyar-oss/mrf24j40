@@ -67,35 +67,35 @@ SystemConfig FileSystem_t::loadConfig() {
         json j;
         file >> j;
 
-        if (j.contains("pan_id")) cfg.pan_id = j["pan_id"].get<uint16_t>();
-        if (j.contains("channel")) cfg.channel = j["channel"].get<uint8_t>();
-        if (j.contains("node_mode")) cfg.node_mode = j["node_mode"].get<uint8_t>();
-        if (j.contains("passphrase")) cfg.passphrase = j["passphrase"].get<std::string>();
-        if (j.contains("use_oled")) cfg.use_oled = j["use_oled"].get<bool>();
-        if (j.contains("use_tft")) cfg.use_tft = j["use_tft"].get<bool>();
-        if (j.contains("enable_encryption")) cfg.enable_encryption = j["enable_encryption"].get<bool>();
-        if (j.contains("enable_hash")) cfg.enable_hash = j["enable_hash"].get<bool>();
-        if (j.contains("log_file")) cfg.log_file = j["log_file"].get<std::string>();
+        if (j.find("pan_id") != j.end()) cfg.pan_id = j["pan_id"].get<uint16_t>();
+        if (j.find("channel") != j.end()) cfg.channel = j["channel"].get<uint8_t>();
+        if (j.find("node_mode") != j.end()) cfg.node_mode = j["node_mode"].get<uint8_t>();
+        if (j.find("passphrase") != j.end()) cfg.passphrase = j["passphrase"].get<std::string>();
+        if (j.find("use_oled") != j.end()) cfg.use_oled = j["use_oled"].get<bool>();
+        if (j.find("use_tft") != j.end()) cfg.use_tft = j["use_tft"].get<bool>();
+        if (j.find("enable_encryption") != j.end()) cfg.enable_encryption = j["enable_encryption"].get<bool>();
+        if (j.find("enable_hash") != j.end()) cfg.enable_hash = j["enable_hash"].get<bool>();
+        if (j.find("log_file") != j.end()) cfg.log_file = j["log_file"].get<std::string>();
 
         // Role
-        if (j.contains("role")) {
+        if (j.find("role") != j.end()) {
             auto role_str = j["role"].get<std::string>();
             cfg.role = roleFromString(role_str);
         }
 
         // Routing table
-        if (j.contains("routing_table") && j["routing_table"].is_array()) {
+        if (j.find("routing_table") != j.end() && j["routing_table"].is_array()) {
             cfg.routing_table.clear();
             for (const auto& entry : j["routing_table"]) {
                 uint64_t dest = 0, next = 0;
-                if (entry.contains("dest")) dest = std::stoull(entry["dest"].get<std::string>(), nullptr, 16);
-                if (entry.contains("next")) next = std::stoull(entry["next"].get<std::string>(), nullptr, 16);
+                if (entry.find("dest") != entry.end()) dest = std::stoull(entry["dest"].get<std::string>(), nullptr, 16);
+                if (entry.find("next") != entry.end()) next = std::stoull(entry["next"].get<std::string>(), nullptr, 16);
                 cfg.routing_table.emplace_back(dest, next);
             }
         }
 
         // MAC address (array de 8 bytes)
-        if (j.contains("mac_address") && j["mac_address"].is_array()) {
+        if (j.find("mac_address") != j.end() && j["mac_address"].is_array()) {
             auto mac = j["mac_address"];
             for (size_t i = 0; i < std::min(mac.size(), size_t{8}); i++) {
                 cfg.mac_address[i] = mac[i].get<uint8_t>();
@@ -191,16 +191,16 @@ SystemConfig FileSystem_t::configFromString(std::string_view json_str) {
 #ifdef ENABLE_JSON
     try {
         json j = json::parse(json_str);
-        if (j.contains("pan_id")) cfg.pan_id = j["pan_id"].get<uint16_t>();
-        if (j.contains("channel")) cfg.channel = j["channel"].get<uint8_t>();
-        if (j.contains("node_mode")) cfg.node_mode = j["node_mode"].get<uint8_t>();
-        if (j.contains("passphrase") && j["passphrase"] != "********")
+        if (j.find("pan_id") != j.end()) cfg.pan_id = j["pan_id"].get<uint16_t>();
+        if (j.find("channel") != j.end()) cfg.channel = j["channel"].get<uint8_t>();
+        if (j.find("node_mode") != j.end()) cfg.node_mode = j["node_mode"].get<uint8_t>();
+        if (j.find("passphrase") != j.end() && j["passphrase"] != "********")
             cfg.passphrase = j["passphrase"].get<std::string>();
-        if (j.contains("use_oled")) cfg.use_oled = j["use_oled"].get<bool>();
-        if (j.contains("use_tft")) cfg.use_tft = j["use_tft"].get<bool>();
-        if (j.contains("enable_encryption")) cfg.enable_encryption = j["enable_encryption"].get<bool>();
-        if (j.contains("enable_hash")) cfg.enable_hash = j["enable_hash"].get<bool>();
-        if (j.contains("mac_address") && j["mac_address"].is_array()) {
+        if (j.find("use_oled") != j.end()) cfg.use_oled = j["use_oled"].get<bool>();
+        if (j.find("use_tft") != j.end()) cfg.use_tft = j["use_tft"].get<bool>();
+        if (j.find("enable_encryption") != j.end()) cfg.enable_encryption = j["enable_encryption"].get<bool>();
+        if (j.find("enable_hash") != j.end()) cfg.enable_hash = j["enable_hash"].get<bool>();
+        if (j.find("mac_address") != j.end() && j["mac_address"].is_array()) {
             auto mac = j["mac_address"];
             for (size_t i = 0; i < std::min(mac.size(), size_t{8}); i++) {
                 cfg.mac_address[i] = mac[i].get<uint8_t>();

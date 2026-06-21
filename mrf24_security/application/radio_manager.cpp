@@ -223,14 +223,14 @@ void RadioManager_t::addRoute(uint64_t dest, uint64_t nextHop) {
     for (auto& [d, n] : m_routing_table) {
         if (d == dest) {
             n = nextHop;  // Actualizar existente
-            log("Route updated: " + services::Crypto_t::toHex(uint64ToMac(dest)) +
-                " → " + services::Crypto_t::toHex(uint64ToMac(nextHop)));
+            log("Route updated: " + macToHex(dest) +
+                " → " + macToHex(nextHop));
             return;
         }
     }
     m_routing_table.emplace_back(dest, nextHop);
-    log("Route added: " + services::Crypto_t::toHex(uint64ToMac(dest)) +
-        " → " + services::Crypto_t::toHex(uint64ToMac(nextHop)));
+    log("Route added: " + macToHex(dest) +
+        " → " + macToHex(nextHop));
 }
 
 void RadioManager_t::removeRoute(uint64_t dest) {
@@ -238,7 +238,7 @@ void RadioManager_t::removeRoute(uint64_t dest) {
         [dest](const auto& pair) { return pair.first == dest; });
     if (it != m_routing_table.end()) {
         m_routing_table.erase(it, m_routing_table.end());
-        log("Route removed: " + services::Crypto_t::toHex(uint64ToMac(dest)));
+        log("Route removed: " + macToHex(dest));
     }
 }
 
@@ -415,7 +415,7 @@ ValidationResult RadioManager_t::validateMessage(const uint8_t* rawMessage, uint
 
     result.valid = true;
     m_validation_stats.messages_validated++;
-    log("Message validated: src=0x" + services::Crypto_t::toHex(uint64ToMac(src_mac)) +
+    log("Message validated: src=0x" + macToHex(src_mac) +
         " TTL=" + std::to_string(result.ttl) +
         " for_us=" + (result.for_us ? "Y" : "N") +
         " fwd=" + (result.should_forward ? "Y" : "N"));
@@ -452,7 +452,7 @@ bool RadioManager_t::forwardMessage(const std::vector<uint8_t>& msg, uint64_t ne
 
     log("Forwarding message: TTL " + std::to_string(ttl) + " → " +
         std::to_string(ttl - 1) + ", nextHop=0x" +
-        services::Crypto_t::toHex(uint64ToMac(nextHop)));
+        macToHex(nextHop));
 
     // Enviar al siguiente salto
     auto next_mac_arr = uint64ToMac(nextHop);
@@ -484,6 +484,11 @@ std::array<uint8_t, 8> RadioManager_t::uint64ToMac(uint64_t addr) {
         addr >>= 8;
     }
     return mac;
+}
+
+std::string RadioManager_t::macToHex(uint64_t addr) {
+    auto arr = uint64ToMac(addr);
+    return services::Crypto_t::toHex({arr.begin(), arr.end()});
 }
 
 uint64_t RadioManager_t::localMac64() const {
@@ -659,8 +664,7 @@ void RadioManager_t::process() {
                     }
 
                     log("Decrypted: " + m_last_message +
-                        " (from 0x" + services::Crypto_t::toHex(
-                            uint64ToMac(validation.src_mac)) + ")");
+                        " (from 0x" +macToHex(validation.src_mac) + ")");
                 } else {
                     log("Decryption failed: " + result.error_msg,
                         services::LogLevel::Error);
