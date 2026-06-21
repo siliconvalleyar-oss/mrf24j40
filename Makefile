@@ -6,7 +6,7 @@
 
 SUB_PROJECTS := mrf24_security mrf24_tx mrf24_rx
 
-.PHONY: all clean info serve-dashboard $(SUB_PROJECTS)
+.PHONY: all clean info serve-dashboard run-unificado run-tx run-rx $(SUB_PROJECTS)
 
 all: $(SUB_PROJECTS)
 
@@ -21,12 +21,27 @@ clean:
 	done
 	@echo "  → Todos los subproyectos limpiados"
 
-# Sirve el dashboard web localmente
+# Compilar y ejecutar el proyecto unificado
+run-unificado: mrf24_security
+	@echo "  → Ejecutando proyecto unificado (requiere sudo)..."
+	sudo ./mrf24_security/bin/mrf24j40_iot
+
+# Compilar y ejecutar el transmisor legacy
+run-tx: mrf24_tx
+	@echo "  → Ejecutando transmisor (requiere sudo)..."
+	sudo ./mrf24_tx/bin/mrf24_transmitter
+
+# Compilar y ejecutar el receptor legacy
+run-rx: mrf24_rx
+	@echo "  → Ejecutando receptor (requiere sudo)..."
+	sudo ./mrf24_rx/bin/mrf24_transmitter
+
+# Sirve el dashboard web localmente (desde la raíz del proyecto)
 serve-dashboard:
-	@echo "  → Sirviendo mrf24-dashboard/ en http://localhost:8080"
+	@echo "  → Dashboard: http://localhost:8080/mrf24-dashboard/"
 	@echo "  → Presiona Ctrl+C para detener"
 	@echo ""
-	@cd mrf24-dashboard && python3 -m http.server 8080
+	@python3 -m http.server 8080
 
 # Información de cada subproyecto
 info:

@@ -742,6 +742,8 @@ body {
 // ── File tree data (dinámico, extraído de la URL base) ──
 const EXCLUDE_DIRS = /obj|bin|\.git|node_modules/;
 const EXCLUDE_EXTS = /\.(o|d|a|so|dll|exe|class)$/;
+// Prefijo para acceder a archivos raíz desde mrf24-dashboard/
+const ROOT_PREFIX = window.location.pathname.includes('/mrf24-dashboard/') ? '..' : '.';
 
 async function scanProject() {
   // Intentar cargar tree.json generado, o scanear con la API
@@ -781,7 +783,7 @@ async function fetchFileList() {
       'mrf24_rx': ['Makefile','README.md','SKILL.md','TODO.md','src/main.cpp','src/config/config.cpp','src/spi/spi.cpp','src/radio/radio.cpp','src/mrf24/mrf24j40.cpp','include/radio/radio.hpp','include/spi/spi.hpp'],
       'scripts_tools': ['installBCM2835.sh','installMosquitto.sh','installLibs.sh','config_radio.sh','gpio.sh','dependeciesLibs.sh'],
       'flow': ['diagram_comunication.dio','diagram_mrf24.dio','diagram_structs.dio'],
-      'mrf24-dashboard': ['index.html','style.css','script.js','gen_html.sh']
+      'mrf24-dashboard': ['index.html','style.css']
     };
     if (knownFiles[dir]) {
       for (const f of knownFiles[dir]) {
@@ -1064,13 +1066,16 @@ function initTrafficChart() {
       ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(padL + plotW, yy); ctx.stroke();
     }
 
-    // Update stats
+    // Update stats (safe null check)
     const lastP = chartData.packets[chartData.packets.length - 1];
     const lastR = chartData.rssi[chartData.rssi.length - 1];
     const lastL = chartData.lqi[chartData.lqi.length - 1];
-    document.getElementById('chart-pkt').textContent = lastP.toFixed(1);
-    document.getElementById('chart-rssi').textContent = lastR.toFixed(1);
-    document.getElementById('chart-lqi').textContent = lastL.toFixed(0);
+    const elPkt = document.getElementById('chart-pkt');
+    const elRssi = document.getElementById('chart-rssi');
+    const elLqi = document.getElementById('chart-lqi');
+    if (elPkt) elPkt.textContent = lastP.toFixed(1);
+    if (elRssi) elRssi.textContent = lastR.toFixed(1);
+    if (elLqi) elLqi.textContent = lastL.toFixed(0);
 
     chartAnimId = requestAnimationFrame(drawChart);
   }
@@ -1259,12 +1264,12 @@ function showDashboard() {
     </div>
 
     <div class="quick-actions">
-      <button class="quick-btn" onclick="loadFile('README.md')"><span class="icon">📖</span>README</button>
-      <button class="quick-btn" onclick="loadFile('TODO.md')"><span class="icon">📋</span> TODO</button>
-      <button class="quick-btn" onclick="loadFile('VERSION.txt')"><span class="icon">📌</span> Versión</button>
-      <button class="quick-btn" onclick="loadFile('prompt.txt')"><span class="icon">📝</span> Prompt</button>
-      <button class="quick-btn" onclick="loadFile('mrf24_security/main.cpp')"><span class="icon">🚀</span> Main</button>
-      <button class="quick-btn" onclick="loadFile('mrf24-dashboard/index.html')"><span class="icon">🎨</span> Dashboard</button>
+      <button class="quick-btn" onclick="loadFile(ROOT_PREFIX+'/README.md')"><span class="icon">📖</span>README</button>
+      <button class="quick-btn" onclick="loadFile(ROOT_PREFIX+'/TODO.md')"><span class="icon">📋</span> TODO</button>
+      <button class="quick-btn" onclick="loadFile(ROOT_PREFIX+'/VERSION.txt')"><span class="icon">📌</span> Versión</button>
+      <button class="quick-btn" onclick="loadFile(ROOT_PREFIX+'/prompt.txt')"><span class="icon">📝</span> Prompt</button>
+      <button class="quick-btn" onclick="loadFile(ROOT_PREFIX+'/mrf24_security/main.cpp')"><span class="icon">🚀</span> Main</button>
+      <button class="quick-btn" onclick="loadFile('index.html')"><span class="icon">🎨</span> Dashboard</button>
     </div>
 
     <div class="project-info">
