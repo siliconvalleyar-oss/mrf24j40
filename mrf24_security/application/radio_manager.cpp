@@ -28,9 +28,10 @@ RadioManager_t::RadioManager_t()
     , m_oled_ok(false)
     , m_tft_ok(false)
     , m_role(NodeRole::EndDevice)
-    , m_message_ready(false)
     , m_packet_count(0)
     , m_validation_stats{}
+    , m_last_message()
+    , m_message_ready(false)
 {
 }
 

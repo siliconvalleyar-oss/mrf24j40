@@ -159,7 +159,6 @@ void St7789_t::drawPixel(int16_t x, int16_t y, ColorRgb565 color) {
 }
 
 void St7789_t::drawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool color) {
-    (void)color;
     ColorRgb565 c = color ? ColorRgb565::White() : ColorRgb565::Black();
     int16_t dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
     int16_t dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
@@ -175,7 +174,6 @@ void St7789_t::drawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool col
 }
 
 void St7789_t::drawRect(int16_t x, int16_t y, int16_t w, int16_t h, bool color) {
-    ColorRgb565 c = color ? ColorRgb565::White() : ColorRgb565::Black();
     drawLine(x, y, x + w - 1, y, color);
     drawLine(x, y + h - 1, x + w - 1, y + h - 1, color);
     drawLine(x, y, x, y + h - 1, color);
@@ -237,8 +235,7 @@ void St7789_t::drawCircle(int16_t x0, int16_t y0, int16_t r, bool color) {
 // ============================================================================
 
 void St7789_t::drawString(int16_t x, int16_t y, std::string_view str,
-                           uint8_t size, bool color) {
-    ColorRgb565 c = color ? ColorRgb565::White() : ColorRgb565::Black();
+                           uint8_t size, bool /*color*/) {
     // Fuente 5x7 simplificada
     int16_t cx = x;
     for (char ch : str) {

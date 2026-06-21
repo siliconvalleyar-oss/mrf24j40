@@ -53,7 +53,7 @@ static int g_fails = 0;
 #define STEP(name) do { \
     g_step++; \
     std::cout << "\n" ANSI_BOLD "  Paso " << g_step << ": " ANSI_CYAN << name << ANSI_RESET "\n"; \
-    std::cout << "  " << std::string(55, '─') << "\n"; \
+    std::cout << "  " << std::string(55, '-') << "\n"; \
 } while(0)
 
 #define OK(msg) do { std::cout << "    " ANSI_GREEN "✓" ANSI_RESET " " << msg << "\n"; } while(0)
