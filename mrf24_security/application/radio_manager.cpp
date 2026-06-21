@@ -165,7 +165,7 @@ services::SystemConfig RadioManager_t::loadConfig() {
 }
 
 bool RadioManager_t::saveConfig() {
-    // Sincronizar rol y tabla antes de guardar
+    // Sincronizar rol, rutas, whitelist antes de guardar
     m_config.role = m_role;
     m_config.routing_table = m_routing_table;
     return m_fs && m_fs->saveConfig(m_config);
@@ -387,7 +387,17 @@ ValidationResult RadioManager_t::validateMessage(const uint8_t* rawMessage, uint
     std::array<uint8_t, FRAME_HASH_LEN> received_hash;
     std::memcpy(received_hash.data(), rawMessage + pos, FRAME_HASH_LEN);
 
-    // 8. Verificar hash
+    // 8. Verificar whitelist de origen (si está habilitada)
+    if (m_config.enable_whitelist && !isSourceAllowed(src_mac)) {
+        result.error_msg = "Source MAC denied by whitelist: 0x" + macToHex(src_mac);
+        m_validation_stats.source_denied++;
+        m_validation_stats.messages_rejected++;
+        log("Source denied by whitelist: 0x" + macToHex(src_mac),
+            services::LogLevel::Warning);
+        return result;
+    }
+
+    // 9. Verificar hash
     // Hash = SHA-256([dest_mac] + [size] + [iv] + [ciphertext])
     std::vector<uint8_t> hash_input;
     hash_input.reserve(FRAME_DEST_MAC_LEN + FRAME_SIZE_LEN +
@@ -409,7 +419,7 @@ ValidationResult RadioManager_t::validateMessage(const uint8_t* rawMessage, uint
         return result;
     }
 
-    // 9. Verificar destino
+    // 10. Verificar destino
     uint64_t local_mac = macToUint64(m_config.mac_address);
     if (dest_mac == BROADCAST_ADDR) {
         // Broadcast: todos los nodos procesan localmente
@@ -432,6 +442,54 @@ ValidationResult RadioManager_t::validateMessage(const uint8_t* rawMessage, uint
         " fwd=" + (result.should_forward ? "Y" : "N"));
 
     return result;
+}
+
+// ============================================================================
+// Whitelist
+// ============================================================================
+
+void RadioManager_t::setWhitelistEnabled(bool enabled) {
+    m_config.enable_whitelist = enabled;
+    log(std::string("Whitelist ") + (enabled ? "enabled" : "disabled"));
+    saveConfig();
+}
+
+bool RadioManager_t::isSourceAllowed(uint64_t src_mac) const {
+    if (!m_config.enable_whitelist) return true;
+    if (src_mac == BROADCAST_ADDR) return true;  // Broadcast siempre permitido
+    for (const auto& allowed : m_config.allowed_sources) {
+        if (allowed == src_mac) return true;
+    }
+    return false;
+}
+
+void RadioManager_t::addAllowedSource(uint64_t src_mac) {
+    // Evitar duplicados
+    for (const auto& allowed : m_config.allowed_sources) {
+        if (allowed == src_mac) {
+            log("Source already in whitelist: 0x" + macToHex(src_mac));
+            return;
+        }
+    }
+    m_config.allowed_sources.push_back(src_mac);
+    log("Source added to whitelist: 0x" + macToHex(src_mac));
+    saveConfig();
+}
+
+void RadioManager_t::removeAllowedSource(uint64_t src_mac) {
+    auto& sources = m_config.allowed_sources;
+    auto it = std::remove(sources.begin(), sources.end(), src_mac);
+    if (it != sources.end()) {
+        sources.erase(it, sources.end());
+        log("Source removed from whitelist: 0x" + macToHex(src_mac));
+        saveConfig();
+    }
+}
+
+void RadioManager_t::clearAllowedSources() {
+    m_config.allowed_sources.clear();
+    log("Whitelist cleared");
+    saveConfig();
 }
 
 // ============================================================================

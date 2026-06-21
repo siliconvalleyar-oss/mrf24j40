@@ -60,6 +60,10 @@ struct SystemConfig {
     NodeRole role = NodeRole::EndDevice;           ///< Rol del dispositivo en la red
     std::vector<std::pair<uint64_t, uint64_t>> routing_table; ///< Tabla de rutas [destino, siguiente_salto]
 
+    // Whitelist de MACs permitidas
+    bool enable_whitelist = false;                          ///< true = solo MACs en allowed_sources pueden enviar
+    std::vector<uint64_t> allowed_sources;                  ///< MACs origen permitidas (64 bits)
+
     // Security
     bool enable_encryption = true;
     bool enable_hash = true;

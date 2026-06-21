@@ -114,6 +114,7 @@ void Menu_t::showMenu() {
     std::cout << "║  9. Configurar rol ZigBee                     ║\n";
     std::cout << "║ 10. Tabla de enrutamiento                     ║\n";
     std::cout << "║ 11. Estadísticas de validación                ║\n";
+    std::cout << "║ 12. Gestionar whitelist MAC                   ║\n";
     std::cout << "║  0. Salir                                     ║\n";
     std::cout << "╚════════════════════════════════════════════════╝\n";
     std::cout << "\n  Opción: ";
@@ -174,6 +175,7 @@ void Menu_t::handleOption(int option) {
         case 9: optionConfigureRole();  break;
         case 10: optionRoutingTable();  break;
         case 11: optionValidationStats(); break;
+        case 12: optionWhitelist();       break;
         default:
             std::cout << "  Opción inválida.\n";
             break;
@@ -496,6 +498,80 @@ void Menu_t::optionRoutingTable() {
         m_manager.removeRoute(dest);
         m_manager.saveConfig();
         std::cout << "  ✅ Ruta eliminada (si existía).\n";
+    }
+}
+
+// ============================================================================
+// Opción 12: Gestionar whitelist MAC
+// ============================================================================
+
+void Menu_t::optionWhitelist() {
+    std::cout << "╔═══ GESTIONAR WHITELIST MAC ═══╗\n\n";
+
+    std::cout << "  Whitelist: " << (m_manager.isWhitelistEnabled() ? "✅ ACTIVA" : "❌ DESACTIVADA") << "\n\n";
+
+    auto& sources = m_manager.allowedSources();
+    if (sources.empty()) {
+        std::cout << "  (vacía — todas las MACs son aceptadas cuando whitelist está desactivada)\n\n";
+    } else {
+        std::cout << "  MACs permitidas:\n";
+        for (size_t i = 0; i < sources.size(); i++) {
+            std::cout << "    [" << (i + 1) << "] 0x";
+            char mac_str[20];
+            snprintf(mac_str, sizeof(mac_str), "%016llX", (unsigned long long)sources[i]);
+            std::cout << mac_str << "\n";
+        }
+        std::cout << "\n";
+    }
+
+    std::cout << "  Acciones:\n";
+    std::cout << "    1. Activar/Desactivar whitelist\n";
+    std::cout << "    2. Agregar MAC permitida\n";
+    std::cout << "    3. Eliminar MAC permitida\n";
+    std::cout << "    4. Limpiar toda la whitelist\n";
+    std::cout << "    0. Volver\n\n";
+
+    int action = inputInt("  Acción: ", 0);
+
+    if (action == 1) {
+        bool new_state = !m_manager.isWhitelistEnabled();
+        m_manager.setWhitelistEnabled(new_state);
+        std::cout << "\n  ✅ Whitelist " << (new_state ? "activada" : "desactivada") << ".\n";
+        if (new_state && sources.empty()) {
+            std::cout << "  ⚠ No hay MACs en la whitelist — todos los mensajes serán rechazados.\n";
+        }
+    } else if (action == 2) {
+        std::cout << "\n  Agregar MAC a whitelist:\n";
+        uint64_t mac = inputMac64();
+        if (mac == 0) {
+            std::cout << "  ❌ MAC inválida.\n";
+            return;
+        }
+        m_manager.addAllowedSource(mac);
+        std::cout << "  ✅ MAC agregada.\n";
+    } else if (action == 3) {
+        if (sources.empty()) {
+            std::cout << "  No hay MACs para eliminar.\n";
+            return;
+        }
+        std::cout << "\n  Eliminar MAC de whitelist:\n";
+        uint64_t mac = inputMac64();
+        if (mac == 0) {
+            std::cout << "  ❌ MAC inválida.\n";
+            return;
+        }
+        m_manager.removeAllowedSource(mac);
+        std::cout << "  ✅ MAC eliminada (si existía).\n";
+    } else if (action == 4) {
+        std::cout << "\n  ¿Estás seguro? (s/N): ";
+        std::string confirm;
+        std::getline(std::cin, confirm);
+        if (confirm == "s" || confirm == "S") {
+            m_manager.clearAllowedSources();
+            std::cout << "  ✅ Whitelist limpiada.\n";
+        } else {
+            std::cout << "  Operación cancelada.\n";
+        }
     }
 }
 

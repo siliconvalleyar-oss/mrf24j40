@@ -67,6 +67,7 @@ private:
     void optionConfigureRole();     // Opción 9
     void optionRoutingTable();      // Opción 10
     void optionValidationStats();   // Opción 11
+    void optionWhitelist();         // Opción 12
 
     // === Utilidad ===
     std::array<uint8_t, 8> inputMacAddress();

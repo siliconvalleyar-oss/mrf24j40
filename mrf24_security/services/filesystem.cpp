@@ -75,6 +75,7 @@ SystemConfig FileSystem_t::loadConfig() {
         if (j.find("use_tft") != j.end()) cfg.use_tft = j["use_tft"].get<bool>();
         if (j.find("enable_encryption") != j.end()) cfg.enable_encryption = j["enable_encryption"].get<bool>();
         if (j.find("enable_hash") != j.end()) cfg.enable_hash = j["enable_hash"].get<bool>();
+        if (j.find("enable_whitelist") != j.end()) cfg.enable_whitelist = j["enable_whitelist"].get<bool>();
         if (j.find("log_file") != j.end()) cfg.log_file = j["log_file"].get<std::string>();
 
         // Role
@@ -91,6 +92,15 @@ SystemConfig FileSystem_t::loadConfig() {
                 if (entry.find("dest") != entry.end()) dest = std::stoull(entry["dest"].get<std::string>(), nullptr, 16);
                 if (entry.find("next") != entry.end()) next = std::stoull(entry["next"].get<std::string>(), nullptr, 16);
                 cfg.routing_table.emplace_back(dest, next);
+            }
+        }
+
+        // Allowed sources (whitelist)
+        if (j.find("allowed_sources") != j.end() && j["allowed_sources"].is_array()) {
+            cfg.allowed_sources.clear();
+            for (const auto& entry : j["allowed_sources"]) {
+                cfg.allowed_sources.push_back(
+                    std::stoull(entry.get<std::string>(), nullptr, 16));
             }
         }
 
@@ -127,10 +137,18 @@ bool FileSystem_t::saveConfig(const SystemConfig& config) {
         j["use_tft"] = config.use_tft;
         j["enable_encryption"] = config.enable_encryption;
         j["enable_hash"] = config.enable_hash;
+        j["enable_whitelist"] = config.enable_whitelist;
         j["log_file"] = config.log_file;
 
         // Role
         j["role"] = std::string(roleToString(config.role));
+
+        // Allowed sources (whitelist)
+        for (const auto& mac : config.allowed_sources) {
+            char buf_mac[20];
+            snprintf(buf_mac, sizeof(buf_mac), "%016llX", (unsigned long long)mac);
+            j["allowed_sources"].push_back(std::string(buf_mac));
+        }
 
         // Routing table
         for (const auto& [dest, next] : config.routing_table) {

@@ -74,6 +74,7 @@ struct ValidationStats {
     uint32_t hash_errors         = 0;  ///< Errores de hash SHA-256
     uint32_t routing_not_found   = 0;  ///< Sin ruta para reenviar
     uint32_t broadcasts_forwarded = 0;  ///< Broadcasts reenviados a todos los nodos
+    uint32_t source_denied        = 0;  ///< MAC origen no está en whitelist
 };
 
 /**
@@ -211,6 +212,48 @@ public:
      * @return true si Router, Coordinator o Mesh.
      */
     bool canForward() const;
+
+    // === Whitelist ===
+
+    /**
+     * @brief Habilita o deshabilita la verificación de whitelist.
+     */
+    void setWhitelistEnabled(bool enabled);
+
+    /**
+     * @brief true si la whitelist está activa.
+     */
+    bool isWhitelistEnabled() const { return m_config.enable_whitelist; }
+
+    /**
+     * @brief Verifica si una MAC origen está permitida.
+     * @param src_mac Dirección MAC de 64 bits.
+     * @return true si está en la whitelist (o whitelist desactivada).
+     */
+    bool isSourceAllowed(uint64_t src_mac) const;
+
+    /**
+     * @brief Agrega una MAC a la whitelist de orígenes permitidos.
+     * @param src_mac Dirección MAC de 64 bits.
+     */
+    void addAllowedSource(uint64_t src_mac);
+
+    /**
+     * @brief Elimina una MAC de la whitelist.
+     * @param src_mac Dirección MAC de 64 bits.
+     */
+    void removeAllowedSource(uint64_t src_mac);
+
+    /**
+     * @brief Limpia toda la whitelist.
+     */
+    void clearAllowedSources();
+
+    /**
+     * @brief Obtiene la lista de MACs permitidas.
+     * @return Referencia constante al vector de MACs.
+     */
+    const std::vector<uint64_t>& allowedSources() const { return m_config.allowed_sources; }
 
     // === Routing ===
 
