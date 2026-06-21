@@ -13,7 +13,6 @@
 
 // OpenSSL headers
 #include <openssl/evp.h>
-#include <openssl/sha.h>
 #include <openssl/rand.h>
 #include <openssl/err.h>
 
@@ -40,20 +39,24 @@ void Crypto_t::deriveKey(std::string_view passphrase) {
     // Usar SHA-256 iterativo para derivar clave de la passphrase
     // En producción, usar PKCS5_PBKDF2_HMAC_SHA1 para mayor seguridad
 
+    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
+
     // Inicializar con SHA-256 de la passphrase
-    SHA256_CTX ctx;
-    SHA256_Init(&ctx);
-    SHA256_Update(&ctx, passphrase.data(), passphrase.size());
-    SHA256_Final(m_key.data(), &ctx);
+    unsigned int len = 0;
+    EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr);
+    EVP_DigestUpdate(ctx, passphrase.data(), passphrase.size());
+    EVP_DigestFinal_ex(ctx, m_key.data(), &len);
 
     // Iterar para fortalecer (1000 iteraciones)
     std::array<uint8_t, SHA256_HASH_LEN> temp;
     for (int i = 0; i < 1000; i++) {
-        SHA256_Init(&ctx);
-        SHA256_Update(&ctx, m_key.data(), m_key.size());
-        SHA256_Final(temp.data(), &ctx);
+        EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr);
+        EVP_DigestUpdate(ctx, m_key.data(), m_key.size());
+        EVP_DigestFinal_ex(ctx, temp.data(), &len);
         std::memcpy(m_key.data(), temp.data(), m_key.size());
     }
+
+    EVP_MD_CTX_free(ctx);
 }
 
 // ============================================================================
@@ -182,13 +185,16 @@ CryptoResult Crypto_t::decrypt(const std::vector<uint8_t>& ciphertext_with_iv) {
 
 std::array<uint8_t, SHA256_HASH_LEN> Crypto_t::sha256(const std::vector<uint8_t>& data) {
     std::array<uint8_t, SHA256_HASH_LEN> hash{};
-    SHA256(data.data(), data.size(), hash.data());
+    unsigned int len = SHA256_HASH_LEN;
+    EVP_Digest(data.data(), data.size(), hash.data(), &len, EVP_sha256(), nullptr);
     return hash;
 }
 
 std::array<uint8_t, SHA256_HASH_LEN> Crypto_t::sha256(std::string_view str) {
     std::array<uint8_t, SHA256_HASH_LEN> hash{};
-    SHA256(reinterpret_cast<const uint8_t*>(str.data()), str.size(), hash.data());
+    unsigned int len = SHA256_HASH_LEN;
+    EVP_Digest(reinterpret_cast<const uint8_t*>(str.data()), str.size(),
+               hash.data(), &len, EVP_sha256(), nullptr);
     return hash;
 }
 
