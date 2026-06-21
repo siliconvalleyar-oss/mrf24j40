@@ -102,11 +102,6 @@ SRCS := \
     $(SRC_DIR)/spi/spi_dbg.cpp \
     $(SRC_DIR)/gpio/gpio.cpp \
     $(SRC_DIR)/mrf24/mrf24j40.cpp \
-    $(SRC_DIR)/mrf24/mrf24j40_send.cpp \
-    $(SRC_DIR)/mrf24/mrf24j40_template.cpp \
-    $(SRC_DIR)/mrf24/radio_trasnreceiver.cpp \
-    $(SRC_DIR)/mrf24/radio.cpp \
-    $(SRC_DIR)/mrf24/zigbee_packet_handler.cpp \
     $(SRC_DIR)/file/file.cpp \
     $(SRC_DIR)/file/database.cpp \
     $(SRC_DIR)/qr/qr.cpp \
