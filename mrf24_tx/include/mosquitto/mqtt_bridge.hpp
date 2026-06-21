@@ -15,7 +15,9 @@
 #include <mosquitto/mqtt_handler.hpp>
 #include <memory>
 #include <string>
+#include <vector>
 #include <map>
+#include <atomic>
 #include <mutex>
 
 // Forward declarations

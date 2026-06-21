@@ -13,7 +13,19 @@
 #include <iostream>
 #include <sstream>
 #include <cstring>
+#include <thread>
+#include <memory>
 #include <bcm2835.h>
+
+// ============================================================================
+// Logging
+// ============================================================================
+
+/** @brief Imprime mensaje de log del bridge */
+static void log(const std::string& msg)
+{
+    std::cout << "[BRIDGE] " << msg << std::endl;
+}
 
 // ============================================================================
 // Constructor / Destructor
@@ -217,11 +229,14 @@ void MqttBridge::processCommand(const std::string& deviceId,
     } else if (deviceId.find("lock") != std::string::npos) {
         setGpio(24, isOn);  // GPIO24 = Cerradura
         if (isOn) {
-            // Auto-bloqueo después de 5 segundos
-            std::thread([this]() {
+            // Auto-bloqueo después de 5 segundos (usar shared_ptr para safety)
+            auto self = std::make_shared<MqttBridge*>(this);
+            std::thread([self]() {
                 std::this_thread::sleep_for(std::chrono::seconds(5));
-                setGpio(24, false);
-                publishStatus("lock_1", false, 0);
+                if (self && *self) {
+                    (*self)->setGpio(24, false);
+                    (*self)->publishStatus("lock_1", false, 0);
+                }
             }).detach();
         }
     } else if (deviceId.find("curtain") != std::string::npos) {
@@ -259,11 +274,4 @@ void MqttBridge::publishDiscovery()
     publishSensor("energy_1", 150.0f);
 }
 
-// ============================================================================
-// Logging
-// ============================================================================
 
-void log(const std::string& msg)
-{
-    std::cout << "[BRIDGE] " << msg << std::endl;
-}

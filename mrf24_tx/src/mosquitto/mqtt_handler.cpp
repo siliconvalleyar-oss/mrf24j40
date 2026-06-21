@@ -12,6 +12,10 @@
 #include <mosquitto/mqtt_handler.hpp>
 #include <iostream>
 #include <cstring>
+#include <mutex>
+
+/** @brief Once flag para inicializar libmosquitto una sola vez (thread-safe) */
+static std::once_flag g_mosquittoInitFlag;
 
 // ============================================================================
 // Constructor / Destructor
@@ -27,12 +31,8 @@ MqttHandler::MqttHandler(const std::string& host, int port,
     , m_username(username)
     , m_password(password)
 {
-    // Inicializar librería mosquitto (thread-safe, llamar una vez)
-    static bool libInitialized = false;
-    if (!libInitialized) {
-        mosquitto_lib_init();
-        libInitialized = true;
-    }
+    // Inicializar librería mosquitto (thread-safe, una sola vez)
+    std::call_once(g_mosquittoInitFlag, []{ mosquitto_lib_init(); });
 }
 
 MqttHandler::~MqttHandler()
