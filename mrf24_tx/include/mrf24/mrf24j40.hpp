@@ -145,6 +145,17 @@ namespace MRF24J40 {
          */
         void settings_mrf(void);
 
+        /**
+         * @brief Configura los registros de seguridad del MRF24J40
+         *
+         * Por defecto deshabilita el cifrado/descifrado por hardware (SECCON1),
+         * desactiva los suites de cifrado (SECCON0) y limpia los registros de
+         * control de seguridad para GTS (SECCR2).
+         *
+         * Llamar después de init() y antes de cualquier operación TX/RX.
+         */
+        void settingsSecurity(void);
+
     protected:
         /**
          * @brief Lee un registro de dirección corta (8 bits)

@@ -22,6 +22,31 @@ namespace MRF24J40 {
 extern size_t ignoreBytes;
 
 // ============================================================================
+// settingsSecurity() — Configuración de seguridad
+// ============================================================================
+
+void Mrf24j::settingsSecurity(void)
+{
+    /**
+     * @brief Configura los registros de seguridad del MRF24J40
+     *
+     * Deshabilita el cifrado/descifrado por hardware:
+     * - SECCON0 (0x2C): sin suite de cifrado (TXNCIPHER=0, RXCIPHER=0)
+     * - SECCON1 (0x2D): DISENC=1, DISDEC=1 (deshabilitar encriptación y desencriptación)
+     * - SECCR2 (0x37): sin cifrado para GTS1/GTS2 (TXG1CIPHER=0, TXG2CIPHER=0)
+     *
+     * Llamar después de init() y antes de cualquier operación TX/RX.
+     */
+    write_short(MRF_SECCON0, 0x00);  // Sin suite de cifrado
+    write_short(MRF_SECCON1, 0x03);  // DISENC=1, DISDEC=1
+    write_short(MRF_SECCR2, 0x00);   // Sin cifrado GTS
+
+    #ifdef DBG
+        std::cout << "[SEC] Seguridad deshabilitada (regs SECCON0/1, SECCR2)\n";
+    #endif
+}
+
+// ============================================================================
 // send() — Envío genérico con vector de bytes
 // ============================================================================
 
