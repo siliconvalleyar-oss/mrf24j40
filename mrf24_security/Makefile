@@ -62,10 +62,13 @@ TARGET := $(BIN_DIR)/mrf24j40_iot
 # -----------------------------------------------------------
 TEST_SRC := tests/test_whitelist.cpp
 TEST_SCENARIO_SRC := tests/test_whitelist_scenario.cpp
+TEST_PERSIST_SRC := tests/test_whitelist_persistence.cpp
 TEST_OBJ := $(OBJ_DIR)/tests/test_whitelist.o
 TEST_SCENARIO_OBJ := $(OBJ_DIR)/tests/test_whitelist_scenario.o
+TEST_PERSIST_OBJ := $(OBJ_DIR)/tests/test_whitelist_persistence.o
 TEST_BIN := tests/test_whitelist
 TEST_SCENARIO_BIN := tests/test_whitelist_scenario
+TEST_PERSIST_BIN := tests/test_whitelist_persistence
 
 # Objetos del proyecto (sin main) para linkear con tests
 PROJECT_OBJS := $(filter-out $(OBJ_DIR)/main.o, $(OBJS))
@@ -96,7 +99,7 @@ $(OBJ_DIR)/%.o: %.cpp
 -include $(DEPS)
 
 clean:
-	@rm -rf $(OBJ_DIR) $(BIN_DIR) $(TEST_BIN) $(TEST_SCENARIO_BIN)
+	@rm -rf $(OBJ_DIR) $(BIN_DIR) $(TEST_BIN) $(TEST_SCENARIO_BIN) $(TEST_PERSIST_BIN)
 	@echo "  → Limpieza completada"
 
 $(TEST_BIN): $(TEST_OBJ) $(PROJECT_OBJS)
@@ -107,20 +110,26 @@ $(TEST_SCENARIO_BIN): $(TEST_SCENARIO_OBJ) $(PROJECT_OBJS)
 	$(CXX) -o $@ $(TEST_SCENARIO_OBJ) $(PROJECT_OBJS) $(LDFLAGS) $(LIBS)
 	@echo "  → Test: $@"
 
+$(TEST_PERSIST_BIN): $(TEST_PERSIST_OBJ) $(PROJECT_OBJS)
+	$(CXX) -o $@ $(TEST_PERSIST_OBJ) $(PROJECT_OBJS) $(LDFLAGS) $(LIBS)
+	@echo "  → Test: $@"
+
 $(OBJ_DIR)/tests/%.o: tests/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(INC_FLAGS) -MMD -MP -c $< -o $@
 
 -include $(OBJ_DIR)/tests/test_whitelist.d
 -include $(OBJ_DIR)/tests/test_whitelist_scenario.d
+-include $(OBJ_DIR)/tests/test_whitelist_persistence.d
 
-test: directories $(TEST_BIN) $(TEST_SCENARIO_BIN)
+test: directories $(TEST_BIN) $(TEST_SCENARIO_BIN) $(TEST_PERSIST_BIN)
 	@echo ""
 	@echo "  ╔══════════════════════════════════════════╗"
 	@echo "  ║  UNIT TESTS — COMPILADOS                ║"
 	@echo "  ║  Ejecutar:                              ║"
 	@echo "  ║    sudo ./$(TEST_BIN)                   ║"
 	@echo "  ║    sudo ./$(TEST_SCENARIO_BIN)          ║"
+	@echo "  ║    sudo ./$(TEST_PERSIST_BIN)           ║"
 	@echo "  ╚══════════════════════════════════════════╝"
 
 info:
