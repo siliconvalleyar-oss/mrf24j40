@@ -21,9 +21,6 @@
 #include <vector>
 #include <utility>
 
-// Forward declarations
-struct QRcode;
-
 namespace drivers {
 
 // Forward declarations de displays

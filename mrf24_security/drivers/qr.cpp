@@ -7,6 +7,8 @@
  */
 
 #include <drivers/qr.hpp>
+#include <drivers/ssd1306.hpp>
+#include <drivers/st7789.hpp>
 #include <qrencode.h>
 #include <cstring>
 #include <iostream>
