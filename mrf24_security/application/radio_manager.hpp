@@ -423,6 +423,17 @@ private:
     // === Estadísticas de validación ===
     ValidationStats m_validation_stats;
 
+    // === Broadcast (prevención de flooding duplicado) ===
+    static constexpr size_t BROADCAST_HISTORY_SIZE = 16;
+    std::vector<std::array<uint8_t, FRAME_HASH_LEN>> m_broadcast_history;
+
+    /**
+     * @brief Verifica si ya procesamos este broadcast (por hash).
+     * @param hash Hash SHA-256 de 32 bytes.
+     * @return true si el hash ya está en el historial.
+     */
+    bool isBroadcastDuplicate(const std::array<uint8_t, FRAME_HASH_LEN>& hash);
+
     // === Mensajes ===
     std::string m_last_message;
     bool m_message_ready;

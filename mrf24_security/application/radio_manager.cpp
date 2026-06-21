@@ -614,6 +614,23 @@ void RadioManager_t::process() {
         // 2. Si es broadcast (for_us + should_forward), procesar local primero
         if (validation.for_us && validation.should_forward &&
             validation.dest_mac == BROADCAST_ADDR) {
+
+            // Extraer hash del paquete para detectar duplicados
+            size_t hash_pos = len - FRAME_HASH_LEN;
+            std::array<uint8_t, FRAME_HASH_LEN> pkt_hash;
+            std::memcpy(pkt_hash.data(), buf + hash_pos, FRAME_HASH_LEN);
+
+            if (isBroadcastDuplicate(pkt_hash)) {
+                log("Broadcast already processed (duplicate), skipping",
+                    services::LogLevel::Info);
+                return;
+            }
+
+            m_broadcast_history.push_back(pkt_hash);
+            if (m_broadcast_history.size() > BROADCAST_HISTORY_SIZE) {
+                m_broadcast_history.erase(m_broadcast_history.begin());
+            }
+
             log("Broadcast received, processing locally and re-broadcasting",
                 services::LogLevel::Info);
             processMessage(buf, len, validation);
@@ -762,6 +779,17 @@ void RadioManager_t::log(std::string_view msg, services::LogLevel level) {
     if (m_fs) {
         m_fs->log(msg, level);
     }
+}
+
+// ============================================================================
+// Broadcast — Prevención de flooding duplicado
+// ============================================================================
+
+bool RadioManager_t::isBroadcastDuplicate(const std::array<uint8_t, FRAME_HASH_LEN>& hash) {
+    for (const auto& seen : m_broadcast_history) {
+        if (seen == hash) return true;
+    }
+    return false;
 }
 
 // ============================================================================
