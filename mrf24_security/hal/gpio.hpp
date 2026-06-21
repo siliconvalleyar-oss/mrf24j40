@@ -17,6 +17,7 @@
 #include <memory>
 #include <functional>
 #include <chrono>
+#include <thread>
 #include <string_view>
 
 namespace hal {
