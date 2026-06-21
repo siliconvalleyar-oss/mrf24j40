@@ -32,7 +32,8 @@ void interrupt_handler() {
 }
 
 // Función para manejar la señal SIGINT (Ctrl+C)
-void sigint_handler(int sig) {
+void sigint_handler(int /*sig*/) {
+    (void)sig;
     running = false;
 }
 

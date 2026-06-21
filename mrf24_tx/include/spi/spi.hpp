@@ -60,21 +60,21 @@ namespace SPI {
          * @param cmd Byte de comando a enviar
          * @return Byte recibido del esclavo
          */
-        const uint8_t Transfer1bytes(const uint8_t cmd);
+        uint8_t Transfer1bytes(const uint8_t cmd);
 
         /**
          * @brief Transfiere 2 bytes por SPI (acceso a registros short address)
          * @param address Dirección de 16 bits (comando + datos)
          * @return Byte recibido (segundo byte de la transferencia)
          */
-        const uint8_t Transfer2bytes(const uint16_t address);
+        uint8_t Transfer2bytes(const uint16_t address);
 
         /**
          * @brief Transfiere 3 bytes por SPI (acceso a registros long address)
          * @param address Dirección de 32 bits (comando largo + datos)
          * @return Byte recibido (tercer byte de la transferencia)
          */
-        const uint8_t Transfer3bytes(const uint32_t address);
+        uint8_t Transfer3bytes(const uint32_t address);
 
         /**
          * @brief Imprime información de depuración de la configuración SPI
@@ -90,7 +90,7 @@ namespace SPI {
          * @brief Obtiene la velocidad configurada del SPI
          * @return Velocidad en Hz
          */
-        const uint32_t get_spi_speed();
+        uint32_t get_spi_speed();
 
     private:
         uint8_t m_tx_buffer[MAX_BUFFER]{0x00};  /**< Buffer de transmisión */

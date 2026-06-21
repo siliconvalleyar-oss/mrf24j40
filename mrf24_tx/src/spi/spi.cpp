@@ -78,7 +78,7 @@ void Spi_t::init()
     settings_spi();
 }
 
-const uint8_t Spi_t::Transfer1bytes(const uint8_t cmd)
+uint8_t Spi_t::Transfer1bytes(const uint8_t cmd)
 {
     /**
      * @brief Transfiere 1 byte por SPI
@@ -89,7 +89,7 @@ const uint8_t Spi_t::Transfer1bytes(const uint8_t cmd)
     return m_rx_buffer[0];
 }
 
-const uint8_t Spi_t::Transfer2bytes(const uint16_t cmd)
+uint8_t Spi_t::Transfer2bytes(const uint16_t cmd)
 {
     /**
      * @brief Transfiere 2 bytes por SPI (acceso a registros short address)
@@ -104,7 +104,7 @@ const uint8_t Spi_t::Transfer2bytes(const uint16_t cmd)
     return buffer[1];
 }
 
-const uint8_t Spi_t::Transfer3bytes(const uint32_t cmd)
+uint8_t Spi_t::Transfer3bytes(const uint32_t cmd)
 {
     /**
      * @brief Transfiere 3 bytes por SPI (acceso a registros long address)
@@ -201,13 +201,13 @@ void Spi_t::init()
     }
 }
 
-const uint32_t Spi_t::get_spi_speed()
+uint32_t Spi_t::get_spi_speed()
 {
     /** @return Velocidad SPI configurada en Hz */
     return m_spi_speed;
 }
 
-const uint8_t Spi_t::Transfer1bytes(const uint8_t cmd)
+uint8_t Spi_t::Transfer1bytes(const uint8_t cmd)
 {
     /**
      * @brief Transfiere 1 byte por SPI
@@ -239,7 +239,7 @@ const uint8_t Spi_t::Transfer1bytes(const uint8_t cmd)
     return 0;
 }
 
-const uint8_t Spi_t::Transfer2bytes(const uint16_t cmd)
+uint8_t Spi_t::Transfer2bytes(const uint16_t cmd)
 {
     /**
      * @brief Transfiere 2 bytes por SPI
@@ -256,7 +256,7 @@ const uint8_t Spi_t::Transfer2bytes(const uint16_t cmd)
     return m_rx_buffer[1];
 }
 
-const uint8_t Spi_t::Transfer3bytes(const uint32_t cmd)
+uint8_t Spi_t::Transfer3bytes(const uint32_t cmd)
 {
     /**
      * @brief Transfiere 3 bytes por SPI

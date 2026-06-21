@@ -90,9 +90,9 @@ public:
     void drawQr(const uint8_t* data, int width, int x, int y, int scale = 1);
 
 private:
+    uint8_t m_i2c_addr;                          ///< Dirección I2C
     std::unique_ptr<hal::I2c_t> m_i2c;          ///< Bus I2C
     std::vector<uint8_t> m_framebuffer;          ///< Framebuffer de 1024 bytes
-    uint8_t m_i2c_addr;                          ///< Dirección I2C
 
     /// Envía un comando al display.
     void sendCommand(uint8_t cmd);

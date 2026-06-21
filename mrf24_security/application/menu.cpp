@@ -311,13 +311,10 @@ void Menu_t::optionTestOled() {
     // Test 1: Texto
     std::cout << "  [1/4] Mostrando texto...\n";
     m_manager.showQrOnOled("MRF24J40 v2.0");
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::this_thread::sleep_for(std::chrono::seconds(1));        // Test 2: Formas
+        std::cout << "  [2/4] Mostrando formas...\n";
 
-    // Test 2: Formas
-    std::cout << "  [2/4] Mostrando formas...\n";
-    auto& radio = m_manager.radio();
-
-    // Test 3: QR
+        // Test 3: QR
     std::cout << "  [3/4] Mostrando QR...\n";
     m_manager.showQrOnOled("Hello IoT!");
 

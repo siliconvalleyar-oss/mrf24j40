@@ -56,9 +56,9 @@ static int g_fails = 0;
     std::cout << "  " << std::string(55, '─') << "\n"; \
 } while(0)
 
-#define OK(msg) std::cout << "    " ANSI_GREEN "✓" ANSI_RESET " " << msg << "\n"
-#define INFO(msg) std::cout << "    " ANSI_BLUE "ℹ" ANSI_RESET " " << msg << "\n"
-#define WARN(msg) std::cout << "    " ANSI_YELLOW "⚠" ANSI_RESET " " << msg << "\n"
+#define OK(msg) do { std::cout << "    " ANSI_GREEN "✓" ANSI_RESET " " << msg << "\n"; } while(0)
+#define INFO(msg) do { std::cout << "    " ANSI_BLUE "ℹ" ANSI_RESET " " << msg << "\n"; } while(0)
+#define WARN(msg) do { std::cout << "    " ANSI_YELLOW "⚠" ANSI_RESET " " << msg << "\n"; } while(0)
 
 // ============================================================================
 // Helpers para construir tramas

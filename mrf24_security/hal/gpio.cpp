@@ -55,7 +55,7 @@ void gpioClose() {
 // Gpio_t
 // ============================================================================
 
-Gpio_t::Gpio_t(uint8_t pin, GpioDirection direction, GpioEdge edge)
+Gpio_t::Gpio_t(uint8_t pin, GpioDirection direction, GpioEdge /*edge*/)
     : m_pin(pin)
     , m_direction(direction)
     , m_fd(-1)

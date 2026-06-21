@@ -58,7 +58,7 @@ Mrf24j40::Mrf24j40()
     : spi_fd(-1), initialized(false), tx_pending(false), tx_ok(false),
       tx_retries(0), seq(0), rx_length(0), rx_lqi(0), rx_rssi_dbm(0), rx_ready(false)
 {
-    memset(&stats, 0, sizeof(stats));
+    stats = {};
 }
 
 Mrf24j40::~Mrf24j40()
@@ -493,7 +493,7 @@ void Mrf24j40::getStats(RadioStats& s)
 void Mrf24j40::resetStats()
 {
     /** @brief Reinicia todas las estadísticas a cero */
-    memset(&stats, 0, sizeof(stats));
+    stats = {};
 }
 
 // ============================================================================

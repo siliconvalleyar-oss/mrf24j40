@@ -88,7 +88,10 @@ int main(int argc, char* argv[]) {
 
     bool run_menu = true;
     std::string tx_mac, tx_msg;
+    (void)tx_mac;
+    (void)tx_msg;
     int rx_seconds = 0;
+    (void)rx_seconds;
     std::string qr_text;
     bool show_config = false;
     bool show_version = false;

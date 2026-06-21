@@ -183,7 +183,7 @@ bool Gpio_t::settings(int pin, const std::string_view str_v, std::ifstream& file
 // Bucle principal de aplicación
 // ============================================================================
 
-const bool Gpio_t::app(bool& flag)
+bool Gpio_t::app(bool& flag)
 {
     /**
      * @brief Bucle de monitoreo de GPIO por polling

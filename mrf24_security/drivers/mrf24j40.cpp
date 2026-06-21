@@ -52,7 +52,7 @@ static constexpr uint8_t INT_TXNIF = (1 << 0);
 static constexpr uint8_t INT_RXIF  = (1 << 3);
 
 static constexpr uint8_t SPI_MODE_0 = 0;
-static const char* SPI_DEVICE = "/dev/spidev0.0";
+static constexpr const char* SPI_DEVICE = "/dev/spidev0.0";
 static constexpr uint32_t SPI_SPEED_HZ = 1000000;
 
 // ============================================================================
@@ -72,7 +72,7 @@ Mrf24j40_t::Mrf24j40_t()
 {
     m_mac64.fill(0);
     m_rx_buf[0] = 0;
-    std::memset(&m_stats, 0, sizeof(m_stats));
+    m_stats = {};
 }
 
 Mrf24j40_t::~Mrf24j40_t() = default;
@@ -402,7 +402,7 @@ void Mrf24j40_t::getStats(Mrf24Stats& stats) const {
 }
 
 void Mrf24j40_t::resetStats() {
-    std::memset(&m_stats, 0, sizeof(m_stats));
+    m_stats = {};
 }
 
 // ============================================================================

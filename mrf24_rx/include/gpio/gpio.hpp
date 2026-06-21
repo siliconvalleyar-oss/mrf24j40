@@ -96,7 +96,7 @@ namespace GPIO {
          * @param flag Referencia al flag de control
          * @return true si hay una interrupción detectada
          */
-        const bool app(bool& flag);
+        bool app(bool& flag);
 
     protected:
         /**

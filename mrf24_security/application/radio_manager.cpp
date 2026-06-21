@@ -30,8 +30,8 @@ RadioManager_t::RadioManager_t()
     , m_role(NodeRole::EndDevice)
     , m_message_ready(false)
     , m_packet_count(0)
+    , m_validation_stats{}
 {
-    std::memset(&m_validation_stats, 0, sizeof(m_validation_stats));
 }
 
 RadioManager_t::~RadioManager_t() {
@@ -115,7 +115,7 @@ bool RadioManager_t::initFromConfig(const services::SystemConfig& config) {
             (void)len;
         };
 
-        m_radio->onTransmit = [this](bool success, uint8_t retries) {
+        m_radio->onTransmit = [this](bool success, uint8_t /*retries*/) {
             if (success) {
                 log("TX OK");
             } else {
@@ -336,14 +336,14 @@ ValidationResult RadioManager_t::validateMessage(const uint8_t* rawMessage, uint
 
     // 1. Extraer dest_mac
     uint64_t dest_mac = 0;
-    for (int i = 0; i < FRAME_DEST_MAC_LEN; i++) {
+    for (size_t i = 0; i < FRAME_DEST_MAC_LEN; i++) {
         dest_mac = (dest_mac << 8) | rawMessage[pos++];
     }
     result.dest_mac = dest_mac;
 
     // 2. Extraer src_mac
     uint64_t src_mac = 0;
-    for (int i = 0; i < FRAME_SRC_MAC_LEN; i++) {
+    for (size_t i = 0; i < FRAME_SRC_MAC_LEN; i++) {
         src_mac = (src_mac << 8) | rawMessage[pos++];
     }
     result.src_mac = src_mac;
@@ -544,7 +544,7 @@ bool RadioManager_t::forwardMessage(const std::vector<uint8_t>& msg, uint64_t ne
 
 uint64_t RadioManager_t::macToUint64(const std::array<uint8_t, 8>& mac) {
     uint64_t val = 0;
-    for (int i = 0; i < 8; i++) {
+    for (size_t i = 0; i < 8; i++) {
         val = (val << 8) | mac[i];
     }
     return val;
