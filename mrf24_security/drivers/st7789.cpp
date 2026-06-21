@@ -51,12 +51,12 @@ St7789_t::~St7789_t() {
 // Comandos SPI de bajo nivel
 // ============================================================================
 
-void St7789_t::sendCommand(uint8_t cmd) {
+void St7789_t::sendCommand(uint8_t /*cmd*/) {
     // D/C# = LOW (comando)
     // m_spi->transfer1(cmd);  // Implementar con GPIO para D/C#
 }
 
-void St7789_t::sendData(const uint8_t* data, size_t len) {
+void St7789_t::sendData(const uint8_t* /*data*/, size_t /*len*/) {
     // D/C# = HIGH (datos)
     // m_spi->transfer(data, len);  // Implementar con GPIO para D/C#
 }
@@ -264,7 +264,7 @@ void St7789_t::drawBitmap(int16_t x, int16_t y, int16_t w, int16_t h,
 
 void St7789_t::drawQr(const uint8_t* data, int qr_width,
                        int x, int y, int scale,
-                       ColorRgb565 fg, ColorRgb565 bg) {
+                       ColorRgb565 fg, ColorRgb565 /*bg*/) {
     for (int row = 0; row < qr_width; row++) {
         for (int col = 0; col < qr_width; col++) {
             bool pixel = data[row * qr_width + col] & 1;

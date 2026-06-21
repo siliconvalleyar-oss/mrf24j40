@@ -463,6 +463,9 @@ private:
     NodeRole m_role;
     RoutingTable m_routing_table;
 
+    // === Estadísticas ===
+    uint32_t m_packet_count;
+
     // === Estadísticas de validación ===
     ValidationStats m_validation_stats;
 
@@ -481,9 +484,6 @@ private:
     std::string m_last_message;
     bool m_message_ready;
     MessageCallback m_msg_callback;
-
-    // === Estadísticas ===
-    uint32_t m_packet_count;
 
     // === Internos ===
     void setupRadio();

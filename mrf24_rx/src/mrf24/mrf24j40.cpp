@@ -85,7 +85,8 @@ uint8_t Mrf24j40::readShort(uint8_t addr)
     tx[0] = (addr & 0x3F) << 1;
     tx[1] = 0x00;
 
-    struct spi_ioc_transfer tr = {0};
+    struct spi_ioc_transfer tr;
+    std::memset(&tr, 0, sizeof(tr));
     tr.tx_buf = (unsigned long)tx;
     tr.rx_buf = (unsigned long)rx;
     tr.len = 2;
@@ -112,7 +113,8 @@ void Mrf24j40::writeShort(uint8_t addr, uint8_t val)
     tx[0] = ((addr & 0x3F) << 1) | 0x01;
     tx[1] = val;
 
-    struct spi_ioc_transfer tr = {0};
+    struct spi_ioc_transfer tr;
+    std::memset(&tr, 0, sizeof(tr));
     tr.tx_buf = (unsigned long)tx;
     tr.len = 2;
     tr.speed_hz = SPI_SPEED_HZ;
@@ -139,7 +141,8 @@ uint8_t Mrf24j40::readLong(uint16_t addr)
     tx[1] = (addr & 0x07) << 5;
     tx[2] = 0x00;
 
-    struct spi_ioc_transfer tr = {0};
+    struct spi_ioc_transfer tr;
+    std::memset(&tr, 0, sizeof(tr));
     tr.tx_buf = (unsigned long)tx;
     tr.rx_buf = (unsigned long)rx;
     tr.len = 3;
@@ -163,7 +166,8 @@ void Mrf24j40::writeLong(uint16_t addr, uint8_t val)
     tx[1] = ((addr & 0x07) << 5) | 0x10;
     tx[2] = val;
 
-    struct spi_ioc_transfer tr = {0};
+    struct spi_ioc_transfer tr;
+    std::memset(&tr, 0, sizeof(tr));
     tr.tx_buf = (unsigned long)tx;
     tr.len = 3;
     tr.speed_hz = SPI_SPEED_HZ;
