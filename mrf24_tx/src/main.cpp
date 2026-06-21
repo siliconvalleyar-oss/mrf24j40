@@ -1,5 +1,5 @@
 /**
- * @file    main.cpp
+ * @file    mrf24_tx/src/main.cpp
  * @brief   Punto de entrada del transmisor MRF24J40.
  *
  * Transmite paquetes ZigBee en modo normal (cada 2s) o en ráfaga (burst).

@@ -1,5 +1,5 @@
 /**
- * @file    main.cpp
+ * @file    mrf24_rx/src/main.cpp
  * @brief   Punto de entrada del receptor MRF24J40.
  *
  * Escucha paquetes ZigBee entrantes, los muestra en consola con
