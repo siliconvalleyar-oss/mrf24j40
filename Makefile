@@ -136,6 +136,8 @@ docs:
 		echo "    Instalálo con: sudo apt-get install doxygen graphviz"; \
 		exit 1; \
 	}
+	@command -v dot >/dev/null 2>&1 || \
+		echo "⚠  graphviz (dot) no instalado. Los diagramas no se generarán."
 	doxygen Doxyfile
 	@echo ""
 	@echo "=========================================="
@@ -156,15 +158,16 @@ docs-html:
 		echo "    Instalálo con: sudo apt-get install doxygen graphviz"; \
 		exit 1; \
 	}
-	@sed -i 's/^GENERATE_LATEX.*= YES/GENERATE_LATEX = NO/' Doxyfile
+	@sed -i.bak 's/^GENERATE_LATEX.*= YES/GENERATE_LATEX = NO/' Doxyfile
 	doxygen Doxyfile
+	@mv Doxyfile.bak Doxyfile
 	@echo ""
 	@echo "✅ Documentación HTML generada en docs/doxygen/html/"
 
 # Regenerar Doxyfile por defecto
 docs-init:
 	@echo "Regenerando Doxyfile..."
-	@doxygen -g Doxyfile 2>/dev/null
+	@doxygen -g -f Doxyfile 2>/dev/null || doxygen -g Doxyfile 2>/dev/null
 	@echo "✅ Doxyfile regenerado. Personalizá las opciones según el proyecto."
 
 # Ayuda

@@ -30,6 +30,9 @@ log/
 **/oled.cpp
 **/oled.hpp
 
+# Generated documentation
+docs/doxygen/
+
 # OS files
 .DS_Store
 Thumbs.db
