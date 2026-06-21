@@ -36,7 +36,7 @@ void sigint_handler(int sig) {
     running = false;
 }
 
-int interrupt_handler() {
+int run_interrupt_monitor() {
     // Configurar la señal para poder terminar el programa con Ctrl+C
     signal(SIGINT, sigint_handler);
 
@@ -61,7 +61,7 @@ int interrupt_handler() {
 
     while (running) {
         // Verificar interrupciones
-        interrupt_handler();
+        run_interrupt_monitor();
 
         // Pequeño retraso para evitar consumir demasiados recursos
         bcm2835_delay(100);

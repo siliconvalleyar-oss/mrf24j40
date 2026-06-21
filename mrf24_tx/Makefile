@@ -118,7 +118,7 @@ SRCS := \
     $(SRC_DIR)/interrupt/interrupt.cpp \
     $(SRC_DIR)/work/rfflush.cpp \
     $(SRC_DIR)/display/epaper.cpp \
-    $(SRC_DIR)/oled/oled.cpp \
+    # $(SRC_DIR)/oled/oled.cpp (omitido: oled/oled/oled.cpp es la versión activa)
     $(SRC_DIR)/oled/oled/SSD1306_OLED.cpp \
     $(SRC_DIR)/oled/oled/SSD1306_OLED_graphics.cpp \
     $(SRC_DIR)/oled/oled/SSD1306_OLED_Print.cpp \
