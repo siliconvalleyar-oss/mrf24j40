@@ -1,3 +1,13 @@
+/*!
+ * @file file.cpp
+ * @brief Gestión de archivos y persistencia de datos
+ * @details Implementa la clase File_t para lectura y escritura de archivos
+ *   binarios. Provee funciones para cargar paquetes MRF24 desde archivo,
+ *   crear logs con timestamp, y validar integridad de datos.
+ * @author MRF24J40 Team
+ * @date 2026
+ */
+
 #include <iostream>
 #include <fstream>
 

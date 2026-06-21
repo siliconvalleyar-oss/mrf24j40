@@ -1,3 +1,15 @@
+/*!
+ * @file rfflush.cpp
+ * @brief Gestión de salida en terminal con posicionamiento de cursor
+ * @details Implementa la clase Fflush_t para manejar la salida por consola
+ *   con capacidades de:
+ *   - Posicionamiento preciso del cursor (escape codes ANSI)
+ *   - Almacenamiento en buffer de mensajes
+ *   - Impresión completa del buffer en pantalla
+ * @author MRF24J40 Team
+ * @date 2026
+ */
+
 #include <work/rfflush.hpp>
 #include <display/color.hpp>
 

@@ -1,18 +1,16 @@
-//////////////////////////////////////////////////////////////////////////////
-//     
-//          filename            :   oled.cpp
-//          License             :   GNU 
-//          Author              :   Lio
-//          Change History      :
-//          Processor           :   ARM
-//          Hardware            :		
-//          Complier            :   ARM
-//          Company             :	lionar037
-//          Dependencies        :	bcm2835
-//          Description         :	libreria para display oled ssd1307
-//          @brief              :	
-//
-//////////////////////////////////////////////////////////////////////////////
+/*!
+ * @file oled.cpp
+ * @brief Driver de alto nivel para display OLED SSD1306 vía I2C
+ * @details Implementa la clase Oled_t que encapsula el driver SSD1306
+ *   de Gavin Lyons. Provee funciones para:
+ *   - Inicialización y configuración I2C
+ *   - Visualización de texto estático y con scroll
+ *   - Gráficos bitmap
+ *   - Conversión a mayúsculas
+ *   - Secuencias de demo (contraste, scroll, inversión)
+ * @author Lio (lionar037)
+ * @date 2026
+ */
 
 #include <oled/oled.hpp>
 #include <config/config.hpp>

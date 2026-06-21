@@ -1,3 +1,14 @@
+/*!
+ * @file tyme.cpp
+ * @brief Funciones de temporización y obtención de tiempo
+ * @details Implementa la clase Time_t con métodos para:
+ *   - Obtener timestamp formateado (YYYYMMDDHHMMSS)
+ *   - Delay en microsegundos usando std::chrono
+ *   - Función libre delay_ms() para uso directo
+ * @author MRF24J40 Team
+ * @date 2026
+ */
+
 #include <config/config.hpp>
 #include <tyme/tyme.hpp>
 #include <chrono>

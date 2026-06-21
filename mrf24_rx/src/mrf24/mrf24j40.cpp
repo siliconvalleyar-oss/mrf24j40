@@ -1,604 +1,535 @@
 /**
  * @file    mrf24j40.cpp
- * @brief   Implementación principal del driver completo MRF24J40
- * @details Driver completo del transceiver MRF24J40MA en namespace MRF24J40.
- *          Proporciona inicialización, lectura/escritura de registros,
- *          manejo de interrupciones por polling, y control de la interfaz
- *          RF (PA/LNA, turbo mode, potencia TX).
+ * @brief   Implementación del driver simplificado MRF24J40
+ * @details Driver de alto nivel para el módulo MRF24J40MA. Proporciona
+ *          una API limpia y minimalista para inicialización, configuración
+ *          de red, transmisión y recepción de tramas IEEE 802.15.4.
+ *          La comunicación SPI se realiza mediante ioctl directo a spidev.
  *
- * @note    Este driver usa SPI::Spi_t para la comunicación de bajo nivel,
- *          mientras que el driver simplificado (Mrf24j40) usa ioctl directo.
+ * @note    Este driver coexiste con el driver completo en src/mrf24/.
+ *          La clase Mrf24j40 es independiente de MRF24J40::Mrf24j.
  *
- * @namespace MRF24J40
+ * @author  Project MRF24J40
+ * @date    2024-2026
  */
 
-#include <mrf24/mrf24j40_cmd.hpp>
-#include <mrf24/mrf24j40_settings.hpp>
-#include <mrf24/mrf24j40.hpp>
-#include <tyme/tyme.hpp>
-#include <config/config.hpp>
-#include <work/data_analisis.hpp>
-#include <spi/spi.hpp>
+#include "mrf24j40.h"
+#include <fcntl.h>
+#include <errno.h>
+#include <linux/spi/spidev.h>
+#include <sys/ioctl.h>
+#include <cstring>
 
-namespace MRF24J40 {
+// ---------------------------------------------------------------------------
+// Constantes de protocolo IEEE 802.15.4
+// ---------------------------------------------------------------------------
+/** @brief Longitud del MAC Header (2 FCF + 1 Seq + 2 PAN + 2 Dst + 2 Src) */
+static constexpr uint8_t MAC_HDR_LEN = 9;
+
+/** @brief Longitud del Frame Check Sequence (CRC16) */
+static constexpr uint8_t FCS_LEN = 2;
+
+/** @brief Longitud mínima de trama válida */
+static constexpr uint8_t MIN_FRAME_LEN = 12;
+
+/** @brief Primer byte del Frame Control Field: data frame, ACK requested, PAN compression */
+static constexpr uint8_t FCF_LO = 0x61;
+
+/** @brief Segundo byte del Frame Control Field: 16-bit dest, 16-bit src, 802.15.4-2003 */
+static constexpr uint8_t FCF_HI = 0x88;
+
+/** @brief Dirección base del TX Normal FIFO en memoria del MRF24J40 */
+static constexpr uint16_t TXNFIFO = 0x300;
+
+/** @brief Dirección base del RX FIFO en memoria del MRF24J40 */
+static constexpr uint16_t RXFIFO = 0x300;
+
+/** @brief Bit para solicitar ACK en el registro TXNCON */
+static constexpr uint8_t TXNACKREQ = (1 << 2);
+
+/** @brief Bit para disparar transmisión en el registro TXNCON */
+static constexpr uint8_t TXNTRIG = (1 << 0);
 
 // ============================================================================
-// Variables globales del módulo
+// Constructor / Destructor
 // ============================================================================
 
-/** @brief Buffer raw de recepción PHY (tamaño máximo: 127 bytes) */
-uint8_t rx_buf[A_MAX_PHY_PACKET_SIZE];
-
-/** @brief Bytes a ignorar en la trama (comportamiento de algunos módulos) */
-size_t ignoreBytes{0};
-
-/** @brief Flag para bufferizar todos los bytes del payload PHY */
-bool bufPHY{false};
-
-/** @brief Estructura con información del último paquete RX */
-rx_info_t rx_info{};
-
-/** @brief Estructura con información de la última transmisión TX */
-tx_info_t tx_info{};
-
-/** @brief Configuración del registro RXMCR (modo promiscuo, coordinator, etc.) */
-RXMCR rxmcr{0x00};
-
-// ============================================================================
-// Constructor
-// ============================================================================
-
-Mrf24j::Mrf24j()
-    : prt_spi{std::make_unique<SPI::Spi_t>()},
-      m_bytes_nodata{m_bytes_MHR + m_bytes_FCS}
+Mrf24j40::Mrf24j40()
+    : spi_fd(-1), initialized(false), tx_pending(false), tx_ok(false),
+      tx_retries(0), seq(0), rx_length(0), rx_lqi(0), rx_rssi_dbm(0), rx_ready(false)
 {
-    /**
-     * @brief Inicializa el driver creando la instancia SPI
-     * y calculando los bytes sin datos (MHR + FCS).
-     */
-    #ifdef DBG
-        std::cout << "Mrf24j( )\r\n";
-    #endif
+    memset(&stats, 0, sizeof(stats));
+}
+
+Mrf24j40::~Mrf24j40()
+{
+    if (spi_fd >= 0) close(spi_fd);
 }
 
 // ============================================================================
-// Operaciones de registro (short address: 8 bits)
+// Operaciones SPI de bajo nivel
 // ============================================================================
 
-const uint8_t Mrf24j::read_short(const uint8_t address)
+uint8_t Mrf24j40::readShort(uint8_t addr)
 {
-    /**
-     * @brief Lee un registro de dirección corta
-     * @param address Dirección del registro (0x00-0x3F)
+    /** 
+     * @brief Lee un registro de dirección corta (8 bits)
+     * @param addr Dirección del registro (0x00-0x3F)
      * @return Valor de 8 bits del registro
-     *
-     * Codifica la dirección en formato SPI short address:
-     * bit 7 = 0 (short), bit 0 = 0 (read), bits 6-1 = address
+     * 
+     * Formato de trama SPI:
+     *   Byte 0: [0][A5][A4][A3][A2][A1][A0][R/W=0]
+     *   Byte 1: dato recibido (dummy byte)
      */
-    const uint8_t tmp = (address << 1 & 0b01111110);
-    return prt_spi->Transfer2bytes(tmp);
+    uint8_t tx[2], rx[2];
+    tx[0] = (addr & 0x3F) << 1;
+    tx[1] = 0x00;
+
+    struct spi_ioc_transfer tr = {0};
+    tr.tx_buf = (unsigned long)tx;
+    tr.rx_buf = (unsigned long)rx;
+    tr.len = 2;
+    tr.speed_hz = SPI_SPEED_HZ;
+    tr.bits_per_word = 8;
+
+    if (ioctl(spi_fd, SPI_IOC_MESSAGE(1), &tr) < 0)
+        perror("readShort");
+    return rx[1];
 }
 
-void Mrf24j::write_short(const uint8_t address, const uint8_t data)
+void Mrf24j40::writeShort(uint8_t addr, uint8_t val)
 {
     /**
-     * @brief Escribe un registro de dirección corta
-     * @param address Dirección del registro (0x00-0x3F)
-     * @param data    Valor a escribir
-     *
-     * Codifica: bit 7 = 0 (short), bit 0 = 1 (write), bits 6-1 = address
-     * Los datos se colocan en el byte alto de la transferencia de 16 bits.
+     * @brief Escribe un registro de dirección corta (8 bits)
+     * @param addr Dirección del registro (0x00-0x3F)
+     * @param val  Valor de 8 bits a escribir
+     * 
+     * Formato de trama SPI:
+     *   Byte 0: [0][A5][A4][A3][A2][A1][A0][R/W=1]
+     *   Byte 1: dato a escribir
      */
-    const uint16_t lsb_tmp = ((address << 1 & 0b01111110) | 0x01) | (data << 8);
-    prt_spi->Transfer2bytes(lsb_tmp);
+    uint8_t tx[2];
+    tx[0] = ((addr & 0x3F) << 1) | 0x01;
+    tx[1] = val;
+
+    struct spi_ioc_transfer tr = {0};
+    tr.tx_buf = (unsigned long)tx;
+    tr.len = 2;
+    tr.speed_hz = SPI_SPEED_HZ;
+    tr.bits_per_word = 8;
+
+    if (ioctl(spi_fd, SPI_IOC_MESSAGE(1), &tr) < 0)
+        perror("writeShort");
 }
 
-// ============================================================================
-// Operaciones de registro (long address: 16 bits)
-// ============================================================================
-
-const uint8_t Mrf24j::read_long(const uint16_t address)
+uint8_t Mrf24j40::readLong(uint16_t addr)
 {
     /**
-     * @brief Lee un registro de dirección larga (0x200-0x3FF)
-     * @param address Dirección de 16 bits
+     * @brief Lee un registro de dirección larga (16 bits, 0x200-0x3FF)
+     * @param addr Dirección del registro de 16 bits
      * @return Valor de 8 bits del registro
-     *
-     * Codifica la dirección larga en formato SPI de 3 bytes:
-     * Byte 0: [1][A10:A4], Byte 1: [A3:A0][0][0][0][R/W=0]
+     * 
+     * Formato de trama SPI de 3 bytes para direcciones largas:
+     *   Byte 0: [1][A10][A9][A8][A7][A6][A5][A4]  (R/W=1, bits altos)
+     *   Byte 1: [A3][A2][A1][A0][X][X][X][R/W=0]   (bits bajos)
+     *   Byte 2: dato recibido (dummy)
      */
-    const uint8_t lsb_address = (address >> 3) & 0x7F;
-    const uint8_t msb_address = (address << 5) & 0xE0;
-    const uint32_t cmd = ((0x80 | lsb_address) | (msb_address << 8)) & 0x0000ffff;
-    return prt_spi->Transfer3bytes(cmd);
+    uint8_t tx[3], rx[3];
+    tx[0] = 0x80 | ((addr >> 3) & 0x7F);
+    tx[1] = (addr & 0x07) << 5;
+    tx[2] = 0x00;
+
+    struct spi_ioc_transfer tr = {0};
+    tr.tx_buf = (unsigned long)tx;
+    tr.rx_buf = (unsigned long)rx;
+    tr.len = 3;
+    tr.speed_hz = SPI_SPEED_HZ;
+    tr.bits_per_word = 8;
+
+    if (ioctl(spi_fd, SPI_IOC_MESSAGE(1), &tr) < 0)
+        perror("readLong");
+    return rx[2];
 }
 
-void Mrf24j::write_long(const uint16_t address, const uint8_t data)
+void Mrf24j40::writeLong(uint16_t addr, uint8_t val)
 {
     /**
-     * @brief Escribe un registro de dirección larga
-     * @param address Dirección de 16 bits
-     * @param data    Valor a escribir
-     *
-     * Similar a read_long pero con R/W=1 en el byte 1.
+     * @brief Escribe un registro de dirección larga (16 bits)
+     * @param addr Dirección del registro de 16 bits
+     * @param val  Valor de 8 bits a escribir
      */
-    const uint8_t lsb_address = (address >> 3) & 0x7F;
-    const uint8_t msb_address = (address << 5) & 0xE0;
-    const uint32_t cmd = ((0x80 | lsb_address) | ((msb_address | 0x10) << 8) | (data << 16)) & 0xffffff;
-    prt_spi->Transfer3bytes(cmd);
+    uint8_t tx[3];
+    tx[0] = 0x80 | ((addr >> 3) & 0x7F);
+    tx[1] = ((addr & 0x07) << 5) | 0x10;
+    tx[2] = val;
+
+    struct spi_ioc_transfer tr = {0};
+    tr.tx_buf = (unsigned long)tx;
+    tr.len = 3;
+    tr.speed_hz = SPI_SPEED_HZ;
+    tr.bits_per_word = 8;
+
+    if (ioctl(spi_fd, SPI_IOC_MESSAGE(1), &tr) < 0)
+        perror("writeLong");
 }
 
 // ============================================================================
-// Gestión de PAN ID
+// Inicialización
 // ============================================================================
 
-const uint16_t Mrf24j::get_pan(void)
+bool Mrf24j40::waitForReset()
 {
-    /** @return PAN ID actual de 16 bits (PANIDH:PANIDL) */
-    const uint8_t panh = read_short(MRF_PANIDH);
-    return (panh << 8 | read_short(MRF_PANIDL));
-}
-
-void Mrf24j::set_pan(const uint16_t panid)
-{
-    /** @brief Configura el PAN ID de la red */
-    write_short(MRF_PANIDH, (panid >> 8) & 0xff);
-    write_short(MRF_PANIDL, panid & 0xff);
-}
-
-// ============================================================================
-// Gestión de direcciones
-// ============================================================================
-
-void Mrf24j::address16_write(const uint16_t address)
-{
-    /** @brief Escribe la dirección corta de 16 bits (SADRH:SADRL) */
-    write_short(MRF_SADRH, (address >> 8) & 0xff);
-    write_short(MRF_SADRL, address & 0xff);
-}
-
-void Mrf24j::address64_write(const uint64_t address)
-{
-    /** @brief Escribe la dirección extendida de 64 bits (EADR7:EADR0) */
-    write_short(MRF_EADR7, (address >> 56) & 0xff);
-    write_short(MRF_EADR6, (address >> 48) & 0xff);
-    write_short(MRF_EADR5, (address >> 40) & 0xff);
-    write_short(MRF_EADR4, (address >> 32) & 0xff);
-    write_short(MRF_EADR3, (address >> 24) & 0xff);
-    write_short(MRF_EADR2, (address >> 16) & 0xff);
-    write_short(MRF_EADR1, (address >> 8) & 0xff);
-    write_short(MRF_EADR0, (address) & 0xff);
-}
-
-const uint16_t Mrf24j::address16_read(void)
-{
-    /** @return Dirección corta de 16 bits leída del módulo */
-    const uint8_t a16h = read_short(MRF_SADRH);
-    return (a16h << 8 | read_short(MRF_SADRL));
-}
-
-const uint64_t Mrf24j::address64_read(void)
-{
-    /** @return Dirección extendida de 64 bits leída del módulo */
-    uint64_t address64;
-    address64 = (read_short(MRF_EADR0));
-    address64 |= (read_short(MRF_EADR1)) << 8;
-    address64 |= static_cast<uint64_t>(read_short(MRF_EADR2)) << 16;
-    address64 |= static_cast<uint64_t>(read_short(MRF_EADR3)) << 24;
-    address64 |= static_cast<uint64_t>(read_short(MRF_EADR4)) << 32;
-    address64 |= static_cast<uint64_t>(read_short(MRF_EADR5)) << 40;
-    address64 |= static_cast<uint64_t>(read_short(MRF_EADR6)) << 48;
-    address64 |= static_cast<uint64_t>(read_short(MRF_EADR7)) << 56;
-    return address64;
-}
-
-// ============================================================================
-// Configuración del módulo
-// ============================================================================
-
-void Mrf24j::set_interrupts(void)
-{
-    /** @brief Configura las máscaras de interrupción para RX y TX normal */
-    write_short(MRF_INTCON, 0b11110110);
-}
-
-void Mrf24j::set_channel(const uint8_t channel)
-{
-    /**
-     * @brief Selecciona el canal IEEE 802.15.4
-     * @param channel Número de canal (11-26)
-     *
-     * Mapea el canal a RFCON0 según la fórmula del fabricante:
-     * valor = ((channel - 11) << 4) | 0x03
-     */
-    write_long(MRF_RFCON0, (((channel - 11) << 4) | 0x03));
-}
-
-void Mrf24j::init(void)
-{
-    /**
-     * @brief Inicializa el módulo MRF24J40
-     *
-     * Realiza la secuencia completa de inicialización:
-     * 1. Delay inicial de 192 µs
-     * 2. Soft reset (configurable vía RESET_MRF_SOFTWARE)
-     * 3. Configura PACON2, TXSTBL
-     * 4. Configura registros RF (RFCON0-8, SLPCON1)
-     * 5. Configura baseband (BBREG2, CCAEDTH, BBREG6)
-     * 6. Configura interrupciones
-     * 7. Selecciona canal
-     * 8. Resetea máquina de estados RF
-     */
-    delay(192);
-
-    #include <config/config.hpp>
-    #ifdef RESET_MRF_SOFTWARE
-        write_short(MRF_SOFTRST, 0x7);
-    #endif
-
-    write_short(MRF_PACON2, 0x98);   // FIFOEN = 1, TXONTS = 0x6
-    write_short(MRF_TXSTBL, 0x95);   // RFSTBL = 0x9
-
-    write_long(MRF_RFCON0, 0x03);    // RFOPT = 0x03
-    write_long(MRF_RFCON1, 0x01);    // VCOOPT = 0x02
-    write_long(MRF_RFCON2, 0x80);    // PLLEN = 1
-    write_long(MRF_RFCON6, 0x90);    // TXFIL = 1, 20MRECVR = 1
-    write_long(MRF_RFCON7, 0x80);    // SLPCLKSEL = 0x2
-    write_long(MRF_RFCON8, 0x10);    // RFVCO = 1
-    write_long(MRF_SLPCON1, 0x21);   // CLKOUTEN = 1, SLPCLKDIV = 0x01
-
-    // Configuración para redes sin beacon
-    write_short(MRF_BBREG2, 0x80);   // CCA mode ED
-    write_short(MRF_CCAEDTH, 0x60);  // CCA ED threshold
-    write_short(MRF_BBREG6, 0x40);   // RSSI append to RX FIFO
-
-    set_interrupts();
-    set_channel(CHANNEL);
-
-    // Reset RF state machine
-    write_short(MRF_RFCTL, 0x04);
-    write_short(MRF_RFCTL, 0x00);
-    delay(192);
-}
-
-// ============================================================================
-// Manejador de interrupciones
-// ============================================================================
-
-void Mrf24j::interrupt_handler(void)
-{
-    /**
-     * @brief Procesa interrupciones del MRF24J40 (polling)
-     *
-     * Lee INTSTAT y procesa:
-     * - RXIF: Lee frame_length del RX FIFO, extrae payload, LQI y RSSI
-     * - TXNIF: Lee TXSTAT, actualiza info de TX
-     *
-     * @note Solo mantiene los datos más recientes (sobrescribe anteriores)
-     */
-    const uint8_t last_interrupt = read_short(MRF_INTSTAT);
-
-    if (last_interrupt & MRF_I_RXIF) {
-        m_flag_got_rx.fetch_add(1, std::memory_order_relaxed);
-
-        noInterrupts();
-        rx_disable();
-
-        const size_t frame_length = read_long(0x300);
-
-    #ifdef USE_MAC_ADDRESS_LONG
-        if (bufPHY) {
-            int rb_ptr = 0;
-            for (size_t i = 0; i < frame_length; ++i) {
-                rx_buf[++rb_ptr] = read_long(0x301 + i);
-            }
-        }
-    #else
-        if (MAX_PACKET_TX < frame_length) {
-            if (bufPHY) {
-                int rb_ptr = 0;
-                for (int i = 0; i < frame_length; ++i) {
-                    rx_buf[++rb_ptr] = read_long(0x301 + i);
-                }
-            } else {
-                write_short(MRF_RXFLUSH, 0x01);
-            }
-            write_short(MRF_BBREG1, 0x00);
-        } else {
-            write_short(MRF_RXFLUSH, 0x01);
-        }
-    #endif
-
-    #ifdef ENABLE_SECURITY
-        write_short(WRITE_SECCR0, 0x80);
-        write_short(WRITE_RXFLUSH, 0x01);
-    #endif
-
-        // Extraer datos de RX en rx_info
-        int rd_ptr = 0;
-        for (int i = 0; i < frame_length; ++i) {
-            rx_info.rx_data[++rd_ptr] = read_long(0x301 + m_bytes_MHR + i);
-        }
-
-        rx_info.frame_length = frame_length;
-        rx_info.lqi = read_long(0x301 + frame_length);
-        rx_info.rssi = read_long(0x301 + frame_length + 1);
-
-        rx_enable();
-        interrupts();
-    }
-
-    if (last_interrupt & MRF_I_TXNIF) {
-        m_flag_got_tx.fetch_add(1, std::memory_order_relaxed);
-        const uint8_t tmp = read_short(MRF_TXSTAT);
-        tx_info.tx_ok = !(tmp & ~(1 << TXNSTAT));
-        tx_info.retries = tmp >> 6;
-        tx_info.channel_busy = (tmp & (1 << CCAFAIL));
-    }
-}
-
-// ============================================================================
-// Verificación de flags
-// ============================================================================
-
-const bool Mrf24j::check_flags(void (*rx_handler)(), void (*tx_handler)())
-{
-    /**
-     * @brief Verifica flags de interrupción y ejecuta handlers
-     *
-     * Si hay datos RX pendientes, invoca rx_handler.
-     * Si hay TX completada, invoca tx_handler.
-     * Los flags se limpian después de procesar.
-     *
-     * @todo Verificar si flags > 1 indica pérdida de datos
-     * @param rx_handler Callback de recepción
-     * @param tx_handler Callback de transmisión
-     * @return true si hay datos RX disponibles
-     */
-    if (m_flag_got_rx) {
-        m_flag_got_rx = 0;
-        #ifdef DBG
-            std::cout << "recibe algo \n";
-        #endif
-        rx_handler();
-        return true;
-    }
-    if (m_flag_got_tx) {
-        m_flag_got_tx = 0;
-        #ifdef DBG_MRF
-            std::cout << "transmite algo \n";
-        #endif
-        tx_handler();
-        return false;
+    /** @brief Espera hasta que el bit de soft reset se desactive (timeout ~200ms) */
+    for (int i = 0; i < 200; i++) {
+        if ((readShort(REG_SOFTRST) & 0x07) == 0x00)
+            return true;
+        usleep(1000);
     }
     return false;
 }
 
-// ============================================================================
-// Modos de operación
-// ============================================================================
-
-void Mrf24j::set_promiscuous(const bool enabled)
-{
-    /** @brief Activa/desactiva modo promiscuo en RXMCR */
-    if (enabled)
-        write_short(MRF_RXMCR, 0x01);
-    else
-        write_short(MRF_RXMCR, 0x00);
-}
-
-void Mrf24j::settings_mrf(void)
+bool Mrf24j40::init(uint8_t channel)
 {
     /**
-     * @brief Aplica configuración adicional al MRF24J40
-     *
-     * Configura los bits de RXMCR según defines COORDINATOR,
-     * ROUTER y PROMISCUE en config.hpp.
+     * @brief Inicializa el módulo MRF24J40
+     * @param channel Canal IEEE 802.15.4 (11-26)
+     * @return true si la inicialización fue exitosa
+     * 
+     * Pasos:
+     * 1. Abre el dispositivo SPI (/dev/spidev0.0)
+     * 2. Configura modo SPI 0, velocidad definida en SPI_SPEED_HZ
+     * 3. Realiza soft reset del módulo
+     * 4. Configura registros RF, canal y baseband
+     * 5. Inicializa FIFO de recepción y máquina de estados RF
      */
-    #ifdef COORDINATOR
-        rxmcr.PANCOORD = true;
-    #else
-        rxmcr.PANCOORD = true;
-    #endif
-
-    #ifdef ROUTER
-        rxmcr.COORD = false;
-    #else
-        rxmcr.COORD = false;
-    #endif
-
-    #ifdef PROMISCUE
-        rxmcr.PROMI = true;
-    #else
-        rxmcr.PROMI = true;
-    #endif
-
-    #ifdef DBG_MRF
-        printf("*reinterpret_cast : 0x%x\n", *reinterpret_cast<uint8_t*>(&rxmcr));
-    #endif
-    write_short(MRF_RXMCR, *reinterpret_cast<uint8_t*>(&rxmcr));
-}
-
-// ============================================================================
-// Accesores
-// ============================================================================
-
-rx_info_t* Mrf24j::get_rxinfo(void) { return &rx_info; }
-tx_info_t* Mrf24j::get_txinfo(void) { return &tx_info; }
-uint8_t*   Mrf24j::get_rxbuf(void)  { return rx_buf; }
-
-const int Mrf24j::rx_datalength(void)
-{
-    /** @return Longitud del payload (frame_length - MHR - FCS) */
-    return rx_info.frame_length - m_bytes_nodata;
-}
-
-void Mrf24j::set_ignoreBytes(const int ib) { ignoreBytes = ib; }
-void Mrf24j::set_bufferPHY(const bool bp)  { bufPHY = bp; }
-bool Mrf24j::get_bufferPHY(void)           { return bufPHY; }
-
-// ============================================================================
-// Control PA/LNA
-// ============================================================================
-
-void Mrf24j::set_palna(const bool enabled)
-{
-    /**
-     * @brief Controla el amplificador externo PA/LNA
-     * @param enabled true = habilita PA/LNA (MRF24J40MB)
-     */
-    if (enabled)
-        write_long(MRF_TESTMODE, 0x07);
-    else
-        write_long(MRF_TESTMODE, 0x08);
-}
-
-// ============================================================================
-// Control RX
-// ============================================================================
-
-void Mrf24j::rx_flush(void)  { write_short(MRF_RXFLUSH, 0x01); }
-void Mrf24j::rx_disable(void) { write_short(MRF_BBREG1, 0x04); }
-void Mrf24j::rx_enable(void)  { write_short(MRF_BBREG1, 0x00); }
-
-// ============================================================================
-// Compatibilidad Arduino (stubs)
-// ============================================================================
-
-void Mrf24j::pinMode(const int, const bool)      {}
-void Mrf24j::digitalWrite(const int, const bool) {}
-void Mrf24j::noInterrupts()                      {}
-
-void Mrf24j::interrupts()
-{
-    /** @brief Reconfigura las máscaras de interrupción */
-    set_interrupts();
-}
-
-void Mrf24j::delay(const uint16_t t)
-{
-    /** @brief Delay en milisegundos usando TYME::Time_t */
-    TYME::Time_t time;
-    time.delay_ms(t);
-}
-
-// ============================================================================
-// Destructor
-// ============================================================================
-
-Mrf24j::~Mrf24j()
-{
-    #ifdef DBG_MRF
-        std::cout << "~Mrf24j( )\r\n";
-    #endif
-}
-
-// ============================================================================
-// Modo turbo (625 kbps)
-// ============================================================================
-
-void Mrf24j::mode_turbo()
-{
-    /**
-     * @brief Activa modo turbo para máximo throughput
-     *
-     * Configura registros BBREG0, BBREG3, BBREG4 para operar
-     * a 625 kbps en lugar de los 250 kbps estándar.
-     * Solo se activa si TURBO_MODE está definido.
-     */
-    #ifdef TURBO_MODE
-        write_short(WRITE_BBREG0, 0x01);
-        write_short(WRITE_BBREG3, 0x38);
-        write_short(WRITE_BBREG4, 0x5C);
-        write_short(WRITE_RFCTL, 0x04);
-        write_short(WRITE_RFCTL, 0x00);
-    #endif
-}
-
-// ============================================================================
-// Inserción de dirección MAC en FIFO
-// ============================================================================
-
-void Mrf24j::set_macaddress(int& i, const uint64_t mac_adress)
-{
-    /**
-     * @brief Escribe una dirección MAC de 64 bits en el FIFO TX
-     * @param i           Índice actual en el FIFO (se incrementa)
-     * @param mac_adress  Dirección MAC a escribir
-     *
-     * Si la dirección es de 16 bits, solo escribe 2 bytes.
-     * Si es de 64 bits, escribe los 8 bytes completos.
-     */
-    write_long(i++, mac_adress & 0xff);
-    write_long(i++, (mac_adress >> 8) & 0xff);
-    if (sizeof(mac_adress) > 2) {
-        #ifdef DBG_MRF
-            std::cout << "es un mac de 64 bytes\n";
-        #endif
-        write_long(i++, (mac_adress >> 16) & 0xff);
-        write_long(i++, (mac_adress >> 24) & 0xff);
-        write_long(i++, (mac_adress >> 32) & 0xff);
-        write_long(i++, (mac_adress >> 40) & 0xff);
-        write_long(i++, (mac_adress >> 48) & 0xff);
-        write_long(i++, (mac_adress >> 56) & 0xff);
+    spi_fd = open(SPI_DEVICE, O_RDWR);
+    if (spi_fd < 0) {
+        fprintf(stderr, "ERROR: No se pudo abrir %s\n", SPI_DEVICE);
+        return false;
     }
+
+    uint8_t mode = SPI_MODE_0;
+    ioctl(spi_fd, SPI_IOC_WR_MODE, &mode);
+
+    uint32_t speed = SPI_SPEED_HZ;
+    ioctl(spi_fd, SPI_IOC_WR_MAX_SPEED_HZ, &speed);
+
+    printf("[SPI] %s, velocidad: %u Hz\n", SPI_DEVICE, speed);
+
+    // Soft reset: escribe 0x07 en SOFTRST y espera que se desactive
+    writeShort(REG_SOFTRST, 0x07);
+    usleep(2000);
+    if (!waitForReset()) {
+        fprintf(stderr, "ERROR: Timeout en soft reset\n");
+        return false;
+    }
+    printf("[INIT] Soft reset OK\n");
+
+    // Configuración base del transceiver
+    writeShort(REG_PACON2, 0x98);   // FIFO enable, TXONTS = 0x6
+    writeShort(REG_TXSTBL, 0x95);   // RF stabilization time
+
+    // Configuración RF
+    writeLong(LREG_RFCON1, 0x02);
+    writeLong(LREG_RFCON2, 0x80);   // PLL enable
+    writeLong(LREG_RFCON3, 0x00);
+    writeLong(LREG_RFCON6, 0x90);   // TX filter, 20MHz receiver
+    writeLong(LREG_RFCON7, 0x80);   // Sleep clock select
+    writeLong(LREG_RFCON8, 0x10);   // RF VCO
+    writeLong(LREG_SLPCON1, 0x21);  // Clock out enable
+
+    // Selección de canal
+    setChannel(channel);
+    printf("[INIT] Canal: %d\n", channel);
+
+    // Configuración baseband
+    writeShort(REG_BBREG2, 0x80);   // CCA mode ED
+    writeShort(REG_CCAEDTH, 0x60);  // ED threshold
+    writeShort(REG_BBREG6, 0x40);   // Append RSSI to RX FIFO
+    writeShort(REG_INTCON, 0xF6);   // Interrupt mask
+
+    flushRx();
+    rfReset();
+
+    initialized = true;
+    printf("[INIT] MRF24J40 inicializado correctamente\n");
+    return true;
 }
 
-// ============================================================================
-// Utilidades RF
-// ============================================================================
-
-void Mrf24j::flush_rx_fifo(void)
+void Mrf24j40::rfReset()
 {
-    /** @brief Limpia el FIFO RX manteniendo otros bits */
-    write_short(MRF_RXFLUSH, read_short(MRF_RXFLUSH) | 0b00000001);
+    /** @brief Resetea la máquina de estados RF escribiendo RFCTL */
+    writeShort(REG_RFCTL, 0x04);
+    usleep(200);
+    writeShort(REG_RFCTL, 0x00);
+    usleep(1000);
 }
 
-void Mrf24j::reset_rf_state_machine(void)
+// ============================================================================
+// Configuración de red
+// ============================================================================
+
+void Mrf24j40::setPan(uint16_t pan)
+{
+    /** @brief Configura el PAN ID (registros PANIDL y PANIDH) */
+    writeShort(REG_PANIDL, pan & 0xFF);
+    writeShort(REG_PANIDH, (pan >> 8) & 0xFF);
+}
+
+void Mrf24j40::setShortAddress(uint16_t addr)
+{
+    /** @brief Configura la dirección corta de 16 bits */
+    writeShort(REG_SADRL, addr & 0xFF);
+    writeShort(REG_SADRH, (addr >> 8) & 0xFF);
+}
+
+uint16_t Mrf24j40::getPan()
+{
+    /** @brief Obtiene el PAN ID actual del módulo */
+    return readShort(REG_PANIDL) | (readShort(REG_PANIDH) << 8);
+}
+
+uint16_t Mrf24j40::getShortAddress()
+{
+    /** @brief Obtiene la dirección corta actual del módulo */
+    return readShort(REG_SADRL) | (readShort(REG_SADRH) << 8);
+}
+
+bool Mrf24j40::setChannel(uint8_t ch)
 {
     /**
-     * @brief Resetea la máquina de estados RF
-     *
-     * Lee RFCTL, escribe bit 2 = 1, luego bit 2 = 0.
+     * @brief Cambia el canal de operación
+     * @param ch Canal (11-26 según IEEE 802.15.4)
+     * @return true si el canal es válido
      */
-    const uint8_t rfctl = read_short(MRF_RFCTL);
-    write_short(MRF_RFCTL, rfctl | 0b00000100);
-    write_short(MRF_RFCTL, rfctl & 0b11111011);
+    if (ch < 11 || ch > 26) return false;
+    uint8_t val = ((ch - 11) << 4) | 0x03;
+    writeLong(LREG_RFCON0, val);
+    rfReset();
+    return true;
+}
+
+void Mrf24j40::flushRx()
+{
+    /** @brief Limpia el FIFO de recepción */
+    writeShort(REG_BBREG1, 0x04);   // Disable receiver
+    writeShort(REG_RXFLUSH, 0x01);  // Flush RX FIFO
+    usleep(100);
+    writeShort(REG_BBREG1, 0x00);   // Re-enable receiver
 }
 
 // ============================================================================
-// Lectura de direcciones MAC
+// Transmisión
 // ============================================================================
 
-void Mrf24j::mrf24j40_get_extended_mac_addr(uint64_t* address)
-{
-    /** @brief Lee la dirección MAC de 64 bits desde los registros EADR */
-    uint8_t* addr_ptr = reinterpret_cast<uint8_t*>(address);
-    addr_ptr[7] = read_short(MRF_EADR7);
-    addr_ptr[6] = read_short(MRF_EADR6);
-    addr_ptr[5] = read_short(MRF_EADR5);
-    addr_ptr[4] = read_short(MRF_EADR4);
-    addr_ptr[3] = read_short(MRF_EADR3);
-    addr_ptr[2] = read_short(MRF_EADR2);
-    addr_ptr[1] = read_short(MRF_EADR1);
-    addr_ptr[0] = read_short(MRF_EADR0);
-}
-
-void Mrf24j::mrf24j40_get_short_mac_addr(uint16_t* address)
-{
-    /** @brief Lee la dirección MAC de 16 bits desde SADRH:SADRL */
-    uint16_t low_addr = read_short(MRF_SADRL);
-    uint16_t high_addr = read_short(MRF_SADRH);
-    *address = (high_addr << 8) | low_addr;
-}
-
-void Mrf24j::mrf24j40_set_tx_power(uint8_t& pwr)
+bool Mrf24j40::send(uint16_t dest_addr, uint16_t dest_pan, const uint8_t* data, uint8_t len)
 {
     /**
-     * @brief Lee la potencia de transmisión actual
-     * @param pwr Referencia donde se almacena el valor de RFCON3
+     * @brief Envía un paquete de datos
+     * @param dest_addr Dirección corta de destino (16 bits)
+     * @param dest_pan  PAN ID de destino
+     * @param data      Puntero a los datos a enviar
+     * @param len       Longitud de los datos (máx MAX_PAYLOAD)
+     * @return true si el paquete se encoló para TX
+     * 
+     * Construye una trama IEEE 802.15.4 en el TX Normal FIFO:
+     *   [Header Length][Frame Length][FCF(2)][Seq][PAN(2)][Dst(2)][Src(2)][Payload...]
+     * Luego dispara la transmisión escribiendo TXNTRIG en TXNCON.
      */
-    pwr = read_long(MRF_RFCON3);
+    if (!initialized || len > MAX_PAYLOAD) return false;
+
+    // Esperar a que TX anterior termine
+    int wait = 500;
+    while (tx_pending && wait-- > 0) {
+        poll();
+        usleep(1000);
+    }
+    if (tx_pending) return false;
+
+    uint16_t src_addr = getShortAddress();
+    const uint8_t frm_len = MAC_HDR_LEN + len;
+
+    // Construir trama en TX FIFO
+    writeLong(TXNFIFO + 0, MAC_HDR_LEN);      // Header length
+    writeLong(TXNFIFO + 1, frm_len);           // Frame length
+    writeLong(TXNFIFO + 2, FCF_LO);            // FCF byte 0
+    writeLong(TXNFIFO + 3, FCF_HI);            // FCF byte 1
+    writeLong(TXNFIFO + 4, seq++);             // Sequence number
+    writeLong(TXNFIFO + 5, dest_pan & 0xFF);   // Dest PAN low
+    writeLong(TXNFIFO + 6, (dest_pan >> 8) & 0xFF);  // Dest PAN high
+    writeLong(TXNFIFO + 7, dest_addr & 0xFF);  // Dest address low
+    writeLong(TXNFIFO + 8, (dest_addr >> 8) & 0xFF);  // Dest address high
+    writeLong(TXNFIFO + 9, src_addr & 0xFF);   // Src address low
+    writeLong(TXNFIFO + 10, (src_addr >> 8) & 0xFF);  // Src address high
+
+    // Payload
+    for (uint8_t i = 0; i < len; i++)
+        writeLong(TXNFIFO + 11 + i, data[i]);
+
+    tx_pending = true;
+    tx_ok = false;
+    tx_retries = 0;
+    stats.packets_sent++;
+
+    // Disparar transmisión con ACK request
+    writeShort(REG_TXNCON, TXNACKREQ | TXNTRIG);
+    return true;
 }
 
-} // namespace MRF24J40
+bool Mrf24j40::sendString(uint16_t dest_addr, const char* str)
+{
+    /** @brief Envía un string como paquete (wrapper de send) */
+    if (!str) return false;
+    uint8_t len = strnlen(str, MAX_PAYLOAD);
+    return send(dest_addr, getPan(), (const uint8_t*)str, len);
+}
+
+// ============================================================================
+// Manejo de interrupciones (polling)
+// ============================================================================
+
+void Mrf24j40::handleTxIrq()
+{
+    /** @brief Procesa interrupción de TX completada */
+    uint8_t txstat = readShort(REG_TXSTAT);
+    tx_ok = !(txstat & 0x01);              // Bit 0: TXNSTAT (0=success)
+    tx_retries = (txstat >> 6) & 0x03;     // Bits 6-7: retry count
+    tx_pending = false;
+
+    if (tx_ok) {
+        stats.tx_success++;
+    } else {
+        stats.tx_fail++;
+    }
+    stats.tx_retries_total += tx_retries;
+}
+
+void Mrf24j40::handleRxIrq()
+{
+    /**
+     * @brief Procesa interrupción de RX (paquete recibido)
+     * 
+     * Lee la trama del RX FIFO, extrae payload, LQI y RSSI.
+     * Convierte RSSI raw a dBm aproximadamente.
+     */
+    writeShort(REG_BBREG1, 0x04);  // Disable RX durante lectura
+
+    uint8_t frame_len = readLong(RXFIFO + 0);
+
+    // Validar longitud mínima de trama IEEE 802.15.4
+    if (frame_len < MIN_FRAME_LEN || frame_len > 127) {
+        flushRx();
+        return;
+    }
+
+    int payload_len = frame_len - MAC_HDR_LEN - FCS_LEN;
+    if (payload_len <= 0 || payload_len > MAX_PAYLOAD) {
+        flushRx();
+        return;
+    }
+
+    // Leer payload del FIFO
+    rx_length = payload_len;
+    for (uint8_t i = 0; i < rx_length; i++)
+        rx_buf[i] = readLong(RXFIFO + 1 + MAC_HDR_LEN + i);
+
+    // Leer LQI y RSSI (añadidos al final del frame por BBREG6)
+    rx_lqi = readLong(RXFIFO + 1 + frame_len);
+    uint8_t raw_rssi = readLong(RXFIFO + 1 + frame_len + 1);
+    rx_rssi_dbm = -90 + raw_rssi / 3;  // Conversión aproximada a dBm
+
+    rx_ready = true;
+
+    // Actualizar estadísticas
+    stats.packets_received++;
+    stats.rx_lqi_sum += rx_lqi;
+    stats.rx_rssi_sum += rx_rssi_dbm;
+    stats.rx_count++;
+
+    flushRx();
+    writeShort(REG_BBREG1, 0x00);  // Re-enable RX
+}
+
+void Mrf24j40::poll()
+{
+    /**
+     * @brief Polling de interrupciones del MRF24J40
+     * 
+     * Debe llamarse periódicamente para procesar eventos TX/RX.
+     * Lee INTSTAT y despacha a los handlers correspondientes.
+     */
+    uint8_t irq = readShort(REG_INTSTAT);
+    if (irq == 0) return;
+
+    if (irq & INT_TXNIF) handleTxIrq();
+    if (irq & INT_RXIF) handleRxIrq();
+    writeShort(REG_INTSTAT, irq);  // Clear interrupt flags
+}
+
+// ============================================================================
+// Recepción
+// ============================================================================
+
+void Mrf24j40::rxGet(uint8_t* buf)
+{
+    /** @brief Obtiene el último paquete recibido */
+    if (buf && rx_ready) {
+        memcpy(buf, rx_buf, rx_length);
+    }
+    rx_ready = false;
+    rx_length = 0;
+}
+
+// ============================================================================
+// Estadísticas
+// ============================================================================
+
+void Mrf24j40::getStats(RadioStats& s)
+{
+    /** @brief Copia las estadísticas actuales a la estructura proporcionada */
+    s = stats;
+}
+
+void Mrf24j40::resetStats()
+{
+    /** @brief Reinicia todas las estadísticas a cero */
+    memset(&stats, 0, sizeof(stats));
+}
+
+// ============================================================================
+// Diagnóstico
+// ============================================================================
+
+void Mrf24j40::printRegisters()
+{
+    /** @brief Imprime el estado de los registros clave del MRF24J40 */
+    printf("\n=== Registros MRF24J40 ===\n");
+    printf("SOFTRST: 0x%02X\n", readShort(REG_SOFTRST));
+    printf("INTSTAT: 0x%02X\n", readShort(REG_INTSTAT));
+    printf("TXSTAT:  0x%02X\n", readShort(REG_TXSTAT));
+    printf("PANID:   0x%04X\n", getPan());
+    printf("SADDR:   0x%04X\n", getShortAddress());
+    printf("RFCON2:  0x%02X\n", readLong(LREG_RFCON2));
+    printf("========================\n");
+}
+
+bool Mrf24j40::selfTest()
+{
+    /**
+     * @brief Autodiagnóstico del módulo MRF24J40
+     * 
+     * Verifica la comunicación SPI escribiendo y leyendo el registro PAN ID.
+     * @return true si el módulo responde correctamente
+     */
+    uint16_t original_pan = getPan();
+    setPan(0x1234);
+    uint16_t test_pan = getPan();
+    setPan(original_pan);
+
+    if (test_pan != 0x1234) {
+        fprintf(stderr, "Self-test falló: escritura PAN\n");
+        return false;
+    }
+    printf("Self-test OK\n");
+    return true;
+}

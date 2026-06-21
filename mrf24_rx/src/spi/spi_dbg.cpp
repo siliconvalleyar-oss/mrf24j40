@@ -1,3 +1,13 @@
+/*!
+ * @file spi_dbg.cpp
+ * @brief Funciones de depuración para el bus SPI
+ * @details Implementa métodos de la clase Spi_t para:
+ *   - Mensajes de error cuando falla la apertura del dispositivo SPI
+ *   - Impresión de depuración de los buffers TX/RX, configuración
+ *     de velocidad, bits por palabra, y resultados de transferencia
+ * @author MRF24J40 Team
+ * @date 2026
+ */
 
 #include <spi/spi.hpp>
 #include <config/config.hpp>

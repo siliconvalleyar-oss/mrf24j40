@@ -1,3 +1,13 @@
+/*!
+ * @file interrupt.cpp
+ * @brief Manejo de interrupciones por GPIO
+ * @details Configura y gestiona interrupciones por flanco descendente
+ *   en el pin GPIO 23 de la Raspberry Pi usando la librería BCM2835.
+ *   Cuenta hasta 3 interrupciones y permite terminación limpia con Ctrl+C.
+ * @author MRF24J40 Team
+ * @date 2026
+ */
+
 #include <bcm2835.h>
 #include <iostream>
 #include <csignal>

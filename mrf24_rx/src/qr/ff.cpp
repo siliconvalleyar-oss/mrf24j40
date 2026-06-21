@@ -1,3 +1,13 @@
+/*!
+ * @file ff.cpp
+ * @brief Funciones auxiliares para generación de códigos QR
+ * @details Implementa métodos de dibujo de rectángulos con caracteres
+ *   aleatorios (función de prueba/placeholder) y creación de códigos QR
+ *   en formato de texto para consola.
+ * @author MRF24J40 Team
+ * @date 2026
+ */
+
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
