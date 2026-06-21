@@ -133,9 +133,9 @@ TARGET := $(BIN_DIR)/mrf24_transmitter
 all: directories $(TARGET)
 	@echo ""
 	@echo "  +------------------------------------------+"
-	@echo "  |  MRF24J40 RECEPTOR - COMPILACIÓN OK     |"
+	@echo "  |  MRF24J40 RECEPTOR - COMPILACION OK     |"
 	@echo "  |  Ejecutar: sudo ./$(TARGET)              |"
-	@echo "  +------------------------------------------+
+	@echo "  +------------------------------------------+"
 
 # Directorios de salida
 directories:
