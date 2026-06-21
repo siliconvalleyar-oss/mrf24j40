@@ -42,7 +42,7 @@ namespace QR{
             ~QrOled_t()=default;
             
             template <typename T>
-            void create_qr (std::string_view& str_view ,  std::vector<T>& variable) {
+            void create_qr (const std::string_view& str_view ,  std::vector<T>& variable) {
                 return;
             }          
     };       
