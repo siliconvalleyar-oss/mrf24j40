@@ -75,9 +75,6 @@ endif
 # -----------------------------------------------------------
 SRCS := \
     $(SRC_DIR)/main.cpp \
-    $(SRC_DIR)/mrf24j40.cpp \
-    $(SRC_DIR)/oled.cpp \
-    $(SRC_DIR)/font5x7.cpp \
     $(SRC_DIR)/config/config.cpp \
     $(SRC_DIR)/spi/spi.cpp \
     $(SRC_DIR)/spi/spi_dbg.cpp \
@@ -101,11 +98,13 @@ SRCS := \
     $(SRC_DIR)/interrupt/interrupt.cpp \
     $(SRC_DIR)/work/rfflush.cpp \
     $(SRC_DIR)/display/epaper.cpp \
+    $(SRC_DIR)/oled/oled.cpp \
     $(SRC_DIR)/oled/oled/SSD1306_OLED.cpp \
     $(SRC_DIR)/oled/oled/SSD1306_OLED_graphics.cpp \
     $(SRC_DIR)/oled/oled/SSD1306_OLED_Print.cpp \
     $(SRC_DIR)/oled/oled/SSD1306_OLED_font.cpp \
-    $(SRC_DIR)/oled/oled/oled.cpp
+    $(SRC_DIR)/oled/oled/oled.cpp \
+    $(SRC_DIR)/fonts/font5x7.cpp
 
 OBJS := $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRCS))
 DEPS := $(OBJS:.o=.d)
