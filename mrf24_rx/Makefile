@@ -70,6 +70,23 @@ else
     $(info [BUILD] zlib NO detectado)
 endif
 
+# libmosquitto (MQTT)
+MOSQ_AVAILABLE := $(shell pkg-config --exists libmosquitto 2>/dev/null && echo "yes" || echo "no")
+ifeq ($(MOSQ_AVAILABLE),yes)
+    $(info [BUILD] libmosquitto detectado)
+    LIBS += -lmosquitto
+    CXXFLAGS += -DENABLE_MQTT
+else
+    $(info [BUILD] libmosquitto NO detectado — MQTT deshabilitado)
+    # Fallback: intentar linkear directamente
+    MOSQ_LIB := $(shell ldconfig -p 2>/dev/null | grep libmosquitto.so | head -1 | awk '{print $$NF}')
+    ifneq ($(strip $(MOSQ_LIB)),)
+        $(info [BUILD] libmosquitto encontrado via ldconfig)
+        LIBS += -lmosquitto
+        CXXFLAGS += -DENABLE_MQTT
+    endif
+endif
+
 # -----------------------------------------------------------
 # Fuentes: todos los .cpp del proyecto
 # -----------------------------------------------------------
@@ -104,7 +121,10 @@ SRCS := \
     $(SRC_DIR)/oled/oled/SSD1306_OLED_Print.cpp \
     $(SRC_DIR)/oled/oled/SSD1306_OLED_font.cpp \
     $(SRC_DIR)/oled/oled/oled.cpp \
-    $(SRC_DIR)/fonts/font5x7.cpp
+    $(SRC_DIR)/fonts/font5x7.cpp \
+    $(SRC_DIR)/mosquitto/mqtt_handler.cpp \
+    $(SRC_DIR)/mosquitto/mqtt_bridge.cpp \
+    $(SRC_DIR)/mosquitto/mosquitto.cpp
 
 OBJS := $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRCS))
 DEPS := $(OBJS:.o=.d)
