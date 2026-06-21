@@ -387,6 +387,9 @@ public:
     /** @brief true si el sistema está inicializado. */
     bool isReady() const { return m_initialized; }
 
+    /** @brief true si la radio está operativa. */
+    bool isRadioReady() const { return m_radio_ok; }
+
     /** @brief Acceso al driver de radio (para debug). */
     drivers::Mrf24j40_t& radio() { return *m_radio; }
 
@@ -405,6 +408,7 @@ private:
     // === Configuración ===
     services::SystemConfig m_config;
     bool m_initialized;
+    bool m_radio_ok;
     bool m_oled_ok;
     bool m_tft_ok;
 

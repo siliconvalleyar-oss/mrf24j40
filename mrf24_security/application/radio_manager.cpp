@@ -24,6 +24,7 @@ namespace application {
 
 RadioManager_t::RadioManager_t()
     : m_initialized(false)
+    , m_radio_ok(false)
     , m_oled_ok(false)
     , m_tft_ok(false)
     , m_role(NodeRole::EndDevice)
@@ -108,19 +109,20 @@ bool RadioManager_t::initFromConfig(const services::SystemConfig& config) {
     setupRadio();
 
     // 6. Callbacks
-    m_radio->onReceive = [this](const uint8_t* data, uint8_t len) {
-        // El protocolo seguro se maneja en process()
-        (void)data;
-        (void)len;
-    };
+    if (m_radio_ok) {
+        m_radio->onReceive = [this](const uint8_t* data, uint8_t len) {
+            (void)data;
+            (void)len;
+        };
 
-    m_radio->onTransmit = [this](bool success, uint8_t retries) {
-        if (success) {
-            log("TX OK");
-        } else {
-            log("TX failed", services::LogLevel::Warning);
-        }
-    };
+        m_radio->onTransmit = [this](bool success, uint8_t retries) {
+            if (success) {
+                log("TX OK");
+            } else {
+                log("TX failed", services::LogLevel::Warning);
+            }
+        };
+    }
 
     m_initialized = true;
     log("System initialized successfully");
@@ -132,6 +134,7 @@ void RadioManager_t::setupRadio() {
 
     if (!m_radio->init(m_config.channel)) {
         log("Radio init failed!", services::LogLevel::Error);
+        m_radio_ok = false;
         return;
     }
 
@@ -141,6 +144,7 @@ void RadioManager_t::setupRadio() {
     m_radio->setMacAddress(m_config.mac_address);
     m_radio->setMode(static_cast<drivers::NodeMode>(m_config.node_mode));
     m_radio->selfTest();
+    m_radio_ok = true;
 
     log("Radio initialized: PAN=0x" +
         services::Crypto_t::toHex({static_cast<uint8_t>(m_config.pan_id >> 8),
@@ -571,7 +575,7 @@ bool RadioManager_t::sendQrMessage(const std::array<uint8_t, 8>& dest_mac,
 // ============================================================================
 
 void RadioManager_t::process() {
-    if (!m_initialized || !m_radio) return;
+    if (!m_initialized || !m_radio_ok || !m_radio) return;
 
     m_radio->poll();
 
