@@ -6,7 +6,8 @@
  *          - Configuración whitelist desde menú (vía API)
  *          - Mensaje desde MAC autorizada → aceptado
  *          - Mensaje desde MAC no autorizada → rechazado con contador
- *          - Broadcast desde MAC desconocida → permitido
+ *          - Broadcast desde MAC whitelisted → permitido
+ *          - Broadcast desde MAC no whitelisted → rechazado (seguridad)
  *          - Desactivar whitelist → todas las MACs permitidas
  *
  *          Ejecutar en la Pi:
@@ -347,33 +348,69 @@ int main() {
     showValidationStats(mgr);
 
     // ========================================================================
-    // Paso 7: Broadcast desde Nodo C (desconocido) — debe ser ACEPTADO
+    // Paso 7: Broadcast desde Nodo B (autorizado) — debe ser ACEPTADO
     // ========================================================================
+    // NOTA: La whitelist verifica el ORIGEN (src_mac), no el destino.
+    //       Un broadcast es válido solo si la MAC origen está autorizada.
 
-    STEP("Broadcast desde Nodo C (MAC no whitelisted) → debe ser ACEPTADO");
+    STEP("Broadcast desde Nodo B (0x02, whitelisted) → debe ser ACEPTADO");
 
     {
         uint64_t broadcast = application::BROADCAST_ADDR;
-        auto frame = buildFrameWithHash(mgr.crypto(), broadcast, nodo_C, 3, iv, payload);
+        auto frame = buildFrameWithHash(mgr.crypto(), broadcast, nodo_B, 3, iv, payload);
         auto result = mgr.validateMessage(frame.data(), static_cast<uint8_t>(frame.size()));
 
         CHECK(result.valid,
-              "Broadcast desde Nodo C debería ser aceptado (broadcast siempre permitido)");
+              "Broadcast desde Nodo B (whitelisted) debería ser aceptado");
         CHECK(result.for_us,
               "Broadcast debería marcarse como for_us");
 
         if (result.valid) {
-            OK("Broadcast C → Todos: " ANSI_GREEN "ACEPTADO" ANSI_RESET);
-            INFO("Broadcast siempre permitido aunque origen no esté en whitelist");
+            OK("Broadcast B → Todos: " ANSI_GREEN "ACEPTADO" ANSI_RESET);
+            INFO("Origen whitelisted + destino broadcast = permitido");
+            INFO("for_us=Y, should_forward=" << (result.should_forward ? "Y" : "N"));
         } else {
-            WARN("Broadcast C → Todos: RECHAZADO: " + result.error_msg);
+            WARN("Broadcast B → Todos: RECHAZADO: " + result.error_msg);
         }
     }
 
     showValidationStats(mgr);
 
     // ========================================================================
-    // Paso 8: Desactivar whitelist — todos vuelven a ser aceptados
+    // Paso 8: Broadcast desde Nodo C (no autorizado) — debe ser RECHAZADO
+    // ========================================================================
+    // La whitelist verifica src_mac, no dest_mac. Un broadcast desde MAC no
+    // autorizada es rechazado por seguridad: el nodo no es fuente conocida.
+
+    STEP("Broadcast desde Nodo C (0x03, NO whitelisted) → debe ser RECHAZADO");
+
+    {
+        uint64_t broadcast = application::BROADCAST_ADDR;
+        auto frame = buildFrameWithHash(mgr.crypto(), broadcast, nodo_C, 3, iv, payload);
+        auto result = mgr.validateMessage(frame.data(), static_cast<uint8_t>(frame.size()));
+
+        CHECK(!result.valid,
+              "Broadcast desde Nodo C (no whitelisted) debería ser rechazado");
+        CHECK(result.error_msg.find("denied") != std::string::npos,
+              "Error debería decir 'denied'");
+
+        if (!result.valid) {
+            OK("Broadcast C → Todos: " ANSI_RED "RECHAZADO" ANSI_RESET);
+            INFO("Motivo: " + result.error_msg);
+            INFO("La whitelist filtra por ORIGEN: C no está autorizado");
+        } else {
+            WARN("Broadcast C → Todos: ACEPTADO (inesperado)");
+        }
+    }
+
+    showValidationStats(mgr);
+
+    stats = mgr.validationStats();
+    CHECK(stats.source_denied == 2,
+          "source_denied debería ser 2 (C unicast denegado + C broadcast denegado)");
+
+    // ========================================================================
+    // Paso 9: Desactivar whitelist — todos vuelven a ser aceptados
     // ========================================================================
 
     STEP("Desactivar whitelist — Nodo C vuelve a poder enviar");
@@ -401,7 +438,7 @@ int main() {
     showValidationStats(mgr);
 
     // ========================================================================
-    // Paso 9: Reactivar whitelist con múltiples MACs
+    // Paso 10: Reactivar whitelist con múltiples MACs
     // ========================================================================
 
     STEP("Reactivar whitelist con ambos nodos (B y C) autorizados");
@@ -432,7 +469,7 @@ int main() {
     }
 
     // ========================================================================
-    // Paso 10: Limpiar whitelist — todos denegados
+    // Paso 11: Limpiar whitelist — todos denegados
     // ========================================================================
 
     STEP("Limpiar whitelist — todos los orígenes denegados");
@@ -484,7 +521,9 @@ int main() {
     std::cout << "  ║     - Nodo C (0x03): RECHAZADO   ← source_denied++      ║\n";
     std::cout << "  ║                                                           ║\n";
     std::cout << "  ║   " ANSI_CYAN " Broadcast (0xFF..FF):" ANSI_RESET "                             ║\n";
-    std::cout << "  ║     - Siempre permitido incluso sin whitelist            ║\n";
+    std::cout << "  ║     - Desde B (whitelisted): ACEPTADO                   ║\n";
+    std::cout << "  ║     - Desde C (no whitelist): RECHAZADO (src no auth)   ║\n";
+    std::cout << "  ║     - La whitelist filtra por ORIGEN, no por destino    ║\n";
     std::cout << "  ║                                                           ║\n";
     std::cout << "  ║   " ANSI_CYAN " Whitelist OFF:" ANSI_RESET "                                    ║\n";
     std::cout << "  ║     - Nodo C (0x03): ACEPTADO (vuelve a funcionar)      ║\n";
