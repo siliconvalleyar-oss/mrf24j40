@@ -1,0 +1,27 @@
+/* ==========================================================================
+   ZigBee MRF24J40 Dashboard — Estilos
+   ========================================================================== */
+   :root {
+    --bg-primary: #0a0e17;
+    --bg-secondary: #111827;
+    --bg-card: #1a2332;
+    --bg-hover: #243044;
+    --border: #1e3a5f;
+    --text-primary: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --accent: #0ea5e9;
+    --accent-glow: rgba(14,165,233,0.15);
+    --green: #22c55e;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --purple: #a855f7;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    height: 100vh;
+    overflow: hidden;
+  }

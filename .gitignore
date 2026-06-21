@@ -38,3 +38,7 @@ docs/doxygen/
 Thumbs.db
 
 prompt.txt
+
+*.log
+file.log
+

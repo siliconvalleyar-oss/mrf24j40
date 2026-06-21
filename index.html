@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MRF24J40 — Proyecto</title>
+    <link rel="stylesheet" href="web/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <aside id="sidebar">
+            <div class="sidebar-header">
+                <h2>📁 Proyecto</h2>
+                <button id="toggleSidebar">◀</button>
+            </div>
+            <div id="tree-container">
+                <ul id="tree-root"></ul>
+            </div>
+            <div class="sidebar-footer">
+                <button id="btn-readme">📖 README</button>
+                <button id="btn-todo">📋 TODO</button>
+                <button id="btn-version">📌 Versión</button>
+            </div>
+        </aside>
+        <main id="main-content">
+            <div id="content-area">
+                <div id="welcome">
+                    <h1>📡 MRF24J40 IoT System</h1>
+                    <p>Selecciona un archivo en el panel izquierdo para ver su contenido.</p>
+                    <hr>
+                    <p><strong>Última versión:</strong> v2.0.2</p>
+                    <p><strong>Rama activa:</strong> release/V3</p>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="web/script.js"></script>
+    <script>
+        // ------------------------------------------------------------------
+        // ESTE BLOQUE SE REEMPLAZARÁ CON EL JSON REAL (ver más abajo)
+        // ------------------------------------------------------------------
+        const fileTree = [];
+
+        // Función para construir el árbol
+        function buildTree(files) {
+            const root = {};
+            files.forEach(file => {
+                const parts = file.path.split('/');
+                let current = root;
+                parts.forEach((part, idx) => {
+                    if (idx === parts.length - 1) {
+                        if (!current._files) current._files = [];
+                        current._files.push({ name: part, path: file.path });
+                    } else {
+                        if (!current[part]) current[part] = {};
+                        current = current[part];
+                    }
+                });
+            });
+            return root;
+        }
+
+        function renderTree(node, path = '') {
+            let html = '<ul>';
+            const keys = Object.keys(node).filter(k => k !== '_files');
+            keys.sort();
+            for (const key of keys) {
+                const subPath = path ? path + '/' + key : key;
+                html += `<li><span class="folder" data-path="${subPath}">📁 ${key}</span>`;
+                html += renderTree(node[key], subPath);
+                html += '</li>';
+            }
+            if (node._files) {
+                node._files.sort((a, b) => a.name.localeCompare(b.name));
+                for (const file of node._files) {
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    const icon = ext === 'md' ? '📄' : ext === 'cpp' || ext === 'hpp' || ext === 'h' ? '📜' : '📎';
+                    html += `<li><span class="file" data-path="${file.path}">${icon} ${file.name}</span></li>`;
+                }
+            }
+            html += '</ul>';
+            return html;
+        }
+
+        const treeData = buildTree(fileTree);
+        document.getElementById('tree-root').innerHTML = renderTree(treeData);
+
+        // Navegación
+        document.addEventListener('click', function(e) {
+            const target = e.target.closest('.file, .folder');
+            if (!target) return;
+            const path = target.dataset.path;
+            if (target.classList.contains('file')) {
+                loadFile(path);
+            } else if (target.classList.contains('folder')) {
+                const ul = target.nextElementSibling;
+                if (ul && ul.tagName === 'UL') {
+                    ul.style.display = ul.style.display === 'none' ? '' : 'none';
+                }
+            }
+        });
+
+        async function loadFile(path) {
+            const area = document.getElementById('content-area');
+            try {
+                const response = await fetch(path);
+                if (!response.ok) throw new Error('No se pudo cargar el archivo');
+                let content = await response.text();
+                const ext = path.split('.').pop().toLowerCase();
+                const isMarkdown = ['md', 'markdown'].includes(ext);
+                if (isMarkdown) {
+                    area.innerHTML = `<div class="markdown-body">${marked.parse(content)}</div>`;
+                } else {
+                    const lang = ext === 'cpp' || ext === 'hpp' || ext === 'h' ? 'cpp' :
+                                 ext === 'json' ? 'json' :
+                                 ext === 'sh' ? 'bash' : 'text';
+                    area.innerHTML = `<pre><code class="language-${lang}">${escapeHtml(content)}</code></pre>`;
+                }
+            } catch (err) {
+                area.innerHTML = `<p style="color: #f88;">❌ Error: ${err.message}</p>`;
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        document.getElementById('btn-readme').addEventListener('click', () => loadFile('README.md'));
+        document.getElementById('btn-todo').addEventListener('click', () => loadFile('TODO.md'));
+        document.getElementById('btn-version').addEventListener('click', () => loadFile('VERSION.txt'));
+
+        document.getElementById('toggleSidebar').addEventListener('click', function() {
+            const sidebar = document.getElementById('sidebar');
+            const main = document.getElementById('main-content');
+            if (sidebar.style.width === '0px' || sidebar.style.width === '') {
+                sidebar.style.width = '300px';
+                sidebar.style.padding = '1rem';
+                main.style.marginLeft = '300px';
+                this.textContent = '◀';
+            } else {
+                sidebar.style.width = '0';
+                sidebar.style.padding = '0';
+                main.style.marginLeft = '0';
+                this.textContent = '▶';
+            }
+        });
+
+        loadFile('README.md');
+    </script>
+</body>
+</html>

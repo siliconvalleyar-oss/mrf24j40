@@ -88,6 +88,11 @@ else
 endif
 
 # -----------------------------------------------------------
+# NOTA: mrf24_security ahora es un proyecto independiente (binario).
+# El código de seguridad está en mrf24_security/ como parte del binario unificado.
+# -----------------------------------------------------------
+
+# -----------------------------------------------------------
 # Fuentes: todos los .cpp del proyecto
 # -----------------------------------------------------------
 SRCS := \
@@ -110,8 +115,6 @@ SRCS := \
     $(SRC_DIR)/qr/qr_img.cpp \
     $(SRC_DIR)/qr/ff.cpp \
     $(SRC_DIR)/tyme/tyme.cpp \
-    $(SRC_DIR)/security/encrypt.cpp \
-    $(SRC_DIR)/security/decrypt.cpp \
     $(SRC_DIR)/interrupt/interrupt.cpp \
     $(SRC_DIR)/work/rfflush.cpp \
     $(SRC_DIR)/display/epaper.cpp \
@@ -141,7 +144,7 @@ all: directories $(TARGET)
 	@echo "  ╔══════════════════════════════════════════╗"
 	@echo "  ║  MRF24J40 TRANSMISOR — COMPILACIÓN OK   ║"
 	@echo "  ║  Ejecutar: sudo ./$(TARGET)              ║"
-	@echo "  ╚══════════════════════════════════════════╝"
+	@echo "  ╚══════════════════════════════════════════╝
 
 # Directorios de salida
 directories:

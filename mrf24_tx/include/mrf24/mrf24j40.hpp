@@ -156,6 +156,12 @@ namespace MRF24J40 {
          */
         void settingsSecurity(void);
 
+        /**
+         * @brief Activa/desactiva modo promiscuo
+         * @param enabled true = recibe todos los paquetes, false = filtra por dirección
+         */
+        void set_promiscuous(const bool enabled);
+
     protected:
         /**
          * @brief Lee un registro de dirección corta (8 bits)
@@ -196,12 +202,6 @@ namespace MRF24J40 {
 
         /** @brief Configura las máscaras de interrupción para TX y RX */
         void set_interrupts(void);
-
-        /**
-         * @brief Activa/desactiva modo promiscuo
-         * @param enabled true = recibe todos los paquetes, false = filtra por dirección
-         */
-        void set_promiscuous(const bool enabled);
 
         /**
          * @brief Selecciona el canal de operación (estándar IEEE 802.15.4)

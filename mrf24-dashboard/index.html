@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZigBee MRF24J40 — IoT Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<style>
+/* ==========================================================================
+   ZigBee MRF24J40 Dashboard — Estilos completos
+   ========================================================================== */
+:root {
+  --bg-primary: #0a0e17;
+  --bg-secondary: #111827;
+  --bg-card: #1a2332;
+  --bg-hover: #243044;
+  --border: #1e3a5f;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent: #0ea5e9;
+  --accent-glow: rgba(14,165,233,0.15);
+  --green: #22c55e;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --purple: #a855f7;
+  --sidebar-width: 280px;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   Terminal Header Bar
+   ========================================================================== */
+.terminal-bar {
+  display: flex; align-items: center; gap: 1rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  padding: 0.6rem 1.25rem;
+  height: 48px;
+  -webkit-app-region: drag;
+}
+.terminal-dots { display: flex; gap: 6px; }
+.terminal-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  transition: opacity 0.2s;
+}
+.terminal-dot:hover { opacity: 0.7; }
+.terminal-dot.red { background: var(--red); }
+.terminal-dot.amber { background: var(--amber); }
+.terminal-dot.green { background: var(--green); }
+.terminal-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem; color: var(--text-secondary);
+  -webkit-app-region: no-drag;
+}
+.terminal-title span { color: var(--accent); }
+.terminal-badge {
+  margin-left: auto;
+  font-size: 0.65rem; padding: 2px 8px;
+  border-radius: 10px; background: var(--accent);
+  color: #000; font-weight: 600;
+  letter-spacing: 0.5px;
+  -webkit-app-region: no-drag;
+}
+
+/* ==========================================================================
+   Layout
+   ========================================================================== */
+#app {
+  display: flex;
+  height: calc(100vh - 48px);
+}
+
+/* ==========================================================================
+   Sidebar
+   ========================================================================== */
+#sidebar {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease, min-width 0.3s ease;
+  overflow: hidden;
+}
+#sidebar.collapsed {
+  width: 0;
+  min-width: 0;
+}
+
+.sidebar-header {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-header h2 {
+  font-size: 0.75rem; font-weight: 600;
+  color: var(--text-muted); text-transform: uppercase;
+  letter-spacing: 1px;
+  flex: 1;
+}
+#toggleSidebar {
+  background: none; border: none; color: var(--text-muted);
+  cursor: pointer; font-size: 0.9rem; padding: 2px;
+  transition: color 0.2s;
+}
+#toggleSidebar:hover { color: var(--text-primary); }
+
+/* Search */
+.search-box {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.search-box input {
+  width: 100%;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.search-box input:focus { border-color: var(--accent); }
+.search-box input::placeholder { color: var(--text-muted); }
+
+/* File Tree */
+#tree-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem 0;
+}
+#tree-container::-webkit-scrollbar { width: 4px; }
+#tree-container::-webkit-scrollbar-track { background: transparent; }
+#tree-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+#tree-root { list-style: none; font-size: 0.8rem; }
+#tree-root ul { list-style: none; padding-left: 1rem; }
+#tree-root li { margin: 0; }
+
+#tree-root .file, #tree-root .folder {
+  display: flex; align-items: center; gap: 0.4rem;
+  padding: 0.3rem 1rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#tree-root .file:hover, #tree-root .folder:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+#tree-root .file.active {
+  background: var(--accent-glow);
+  color: var(--accent);
+  border-left: 2px solid var(--accent);
+}
+#tree-root .folder { font-weight: 500; color: var(--text-primary); }
+#tree-root .folder::before { content: '📁'; }
+#tree-root .folder.open::before { content: '📂'; }
+
+/* Extension-based file colors */
+#tree-root .file[data-ext="md"]::before { content: '📄'; }
+#tree-root .file[data-ext="cpp"]::before,
+#tree-root .file[data-ext="hpp"]::before,
+#tree-root .file[data-ext="h"]::before { content: '📜'; }
+#tree-root .file[data-ext="sh"]::before { content: '⚡'; }
+#tree-root .file[data-ext="json"]::before { content: '📋'; }
+#tree-root .file[data-ext="txt"]::before { content: '📝'; }
+#tree-root .file[data-ext="Makefile"]::before,
+#tree-root .file[data-ext="makefile"]::before { content: '🔧'; }
+#tree-root .file[data-ext="dio"]::before { content: '📊'; }
+#tree-root .file[data-ext="py"]::before { content: '🐍'; }
+#tree-root .file[data-ext="yml"]::before,
+#tree-root .file[data-ext="yaml"]::before { content: '⚙️'; }
+
+.file-count {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  padding: 0.5rem 1rem;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+
+/* ==========================================================================
+   Main Content
+   ========================================================================== */
+#main-content {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--bg-primary);
+}
+#main-content::-webkit-scrollbar { width: 6px; }
+#main-content::-webkit-scrollbar-track { background: transparent; }
+#main-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+#content-area {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem;
+  min-height: 100%;
+}
+
+/* ==========================================================================
+   Welcome / Dashboard
+   ========================================================================== */
+.dashboard { animation: fadeIn 0.5s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+.dashboard-header {
+  text-align: center;
+  padding: 2rem 1rem 1.5rem;
+}
+.dashboard-logo {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.1rem;
+  color: var(--accent);
+  margin-bottom: 0.75rem;
+  letter-spacing: 2px;
+}
+.dashboard-header h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.5rem;
+}
+.dashboard-header p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+.stat-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(14,165,233,0.08);
+}
+.stat-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 3px;
+}
+.stat-card.accent::after { background: var(--accent); }
+.stat-card.green::after { background: var(--green); }
+.stat-card.amber::after { background: var(--amber); }
+.stat-card.purple::after { background: var(--purple); }
+
+.stat-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 0.5rem;
+}
+.stat-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+.stat-card.accent .stat-value { color: var(--accent); }
+.stat-card.green .stat-value { color: var(--green); }
+.stat-card.amber .stat-value { color: var(--amber); }
+.stat-card.purple .stat-value { color: var(--purple); }
+.stat-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Quick Actions */
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+}
+.quick-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+.quick-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+.quick-btn .icon { font-size: 1.2rem; display: block; margin-bottom: 0.3rem; }
+
+/* Project info */
+.project-info {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin: 1.5rem 0;
+}
+.project-info h3 {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 1rem;
+}
+.info-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(30,58,95,0.3);
+  font-size: 0.85rem;
+}
+.info-row:last-child { border-bottom: none; }
+.info-label { color: var(--text-secondary); }
+.info-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+}
+.info-value.tag {
+  background: var(--accent-glow);
+  color: var(--accent);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+}
+
+/* ==========================================================================
+   Code / Markdown Viewer
+   ========================================================================== */
+.file-viewer-header {
+  display: flex; align-items: center; gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.file-viewer-header .path {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.file-viewer-header .path span { color: var(--accent); }
+.file-viewer-header .lang-badge {
+  margin-left: auto;
+  font-size: 0.65rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--bg-hover);
+  color: var(--text-muted);
+}
+
+.markdown-body {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--text-primary);
+  animation: fadeIn 0.3s ease;
+}
+.markdown-body h1 { font-size: 1.8rem; margin: 1.5em 0 0.5em; font-weight: 700; }
+.markdown-body h2 { font-size: 1.4rem; margin: 1.5em 0 0.5em; font-weight: 600; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
+.markdown-body h3 { font-size: 1.15rem; margin: 1.2em 0 0.4em; font-weight: 600; }
+.markdown-body p { margin: 0.5em 0; }
+.markdown-body a { color: var(--accent); text-decoration: none; }
+.markdown-body a:hover { text-decoration: underline; }
+.markdown-body pre {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+.markdown-body pre code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  background: none;
+  padding: 0;
+}
+.markdown-body code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  background: var(--bg-hover);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+}
+.markdown-body table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+.markdown-body th, .markdown-body td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-size: 0.85rem;
+}
+.markdown-body th { background: var(--bg-card); font-weight: 600; }
+.markdown-body ul, .markdown-body ol { padding-left: 1.5rem; margin: 0.5em 0; }
+.markdown-body li { margin: 0.25em 0; }
+.markdown-body blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 1rem;
+  margin: 1em 0;
+  color: var(--text-secondary);
+}
+.markdown-body hr { border: none; border-top: 1px solid var(--border); margin: 2em 0; }
+.markdown-body img { max-width: 100%; border-radius: 8px; }
+
+/* Code block (non-markdown files) */
+.code-block-wrapper {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.code-block-header {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.code-block-header .dot { width: 8px; height: 8px; border-radius: 50%; }
+.code-block-header .dot.red { background: var(--red); }
+.code-block-header .dot.amber { background: var(--amber); }
+.code-block-header .dot.green { background: var(--green); }
+.code-block-header .filename { margin-left: 0.5rem; color: var(--text-secondary); }
+.code-block-body {
+  padding: 1rem;
+  overflow-x: auto;
+}
+.code-block-body pre {
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+/* Loading state */
+.loading {
+  display: flex; align-items: center; justify-content: center;
+  height: 200px; color: var(--text-muted); font-size: 0.9rem;
+  gap: 0.5rem;
+}
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.error-message {
+  text-align: center; padding: 3rem 1rem;
+  color: var(--red);
+}
+.error-message .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+
+/* ==========================================================================
+   SVG Architecture Diagram
+   ========================================================================== */
+.arch-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin: 1.5rem 0;
+}
+.arch-container h3 {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 1rem;
+}
+.arch-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.arch-box {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+.arch-box:hover { filter: brightness(1.3); }
+.arch-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  fill: var(--text-primary);
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+.arch-sub {
+  font-family: 'Inter', sans-serif;
+  font-size: 9px;
+  fill: var(--text-muted);
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+.arch-line {
+  stroke: var(--border);
+  stroke-width: 1.5;
+  fill: none;
+}
+.arch-arrow {
+  fill: var(--text-muted);
+}
+@keyframes pulseNode {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+.arch-pulse {
+  animation: pulseNode 2s ease-in-out infinite;
+}
+@keyframes flowDot {
+  0% { offset-distance: 0%; opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0.3; }
+}
+.flow-dot {
+  animation: flowDot 2.5s linear infinite;
+}
+.flow-dot:nth-child(2) { animation-delay: 0.8s; }
+.flow-dot:nth-child(3) { animation-delay: 1.6s; }
+
+/* ==========================================================================
+   Traffic Chart (Canvas)
+   ========================================================================== */
+.chart-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin: 1.5rem 0;
+}
+.chart-container h3 {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 1rem;
+}
+.chart-wrapper {
+  position: relative;
+  width: 100%;
+  height: 200px;
+}
+.chart-wrapper canvas {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+}
+.chart-legend {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+.chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+.chart-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.chart-stats {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.chart-stats span { color: var(--accent); }
+
+/* ==========================================================================
+   Animated Header
+   ========================================================================== */
+@keyframes signalPulse {
+  0% { r: 15; opacity: 0.8; }
+  100% { r: 40; opacity: 0; }
+}
+@keyframes signalPulse2 {
+  0% { r: 20; opacity: 0.6; }
+  100% { r: 55; opacity: 0; }
+}
+@keyframes signalPulse3 {
+  0% { r: 25; opacity: 0.4; }
+  100% { r: 70; opacity: 0; }
+}
+@keyframes rotateGlow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.dash-animated-logo {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+/* Status bar */
+.status-bar {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  margin: 1rem 0;
+  flex-wrap: wrap;
+}
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+.status-led {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.status-led.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.status-led.amber { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+.status-led.purple { background: var(--purple); box-shadow: 0 0 6px var(--purple); }
+@keyframes blinkGreen {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.status-blink { animation: blinkGreen 1.5s ease-in-out infinite; }
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+@media (max-width: 768px) {
+  #sidebar {
+    position: fixed;
+    z-index: 100;
+    height: 100%;
+    left: 0;
+    top: 48px;
+    transform: translateX(0);
+    transition: transform 0.3s ease;
+  }
+  #sidebar.collapsed { transform: translateX(-100%); width: var(--sidebar-width); min-width: var(--sidebar-width); }
+  #content-area { padding: 1rem; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Highlight.js overrides */
+.hljs { background: transparent !important; }
+</style>
+</head>
+<body>
+
+<!-- Terminal Bar -->
+<div class="terminal-bar">
+  <div class="terminal-dots">
+    <span class="terminal-dot red"></span>
+    <span class="terminal-dot amber"></span>
+    <span class="terminal-dot green"></span>
+  </div>
+  <div class="terminal-title">guest@<span>mrf24</span>:~/zigbee-hub</div>
+  <span class="terminal-badge">v2.0.2</span>
+</div>
+
+<div id="app">
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div class="sidebar-header">
+      <h2>Explorador</h2>
+      <button id="toggleSidebar" title="Colapsar">◀</button>
+    </div>
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Buscar archivos..." autocomplete="off">
+    </div>
+    <div id="tree-container">
+      <ul id="tree-root"></ul>
+    </div>
+    <div class="file-count" id="fileCount"></div>
+  </aside>
+
+  <!-- Main -->
+  <main id="main-content">
+    <div id="content-area"></div>
+  </main>
+</div>
+
+<script>
+// ============================================================================
+// ZigBee MRF24J40 Dashboard — Lógica completa
+// ============================================================================
+
+// ── File tree data (dinámico, extraído de la URL base) ──
+const EXCLUDE_DIRS = /obj|bin|\.git|node_modules/;
+const EXCLUDE_EXTS = /\.(o|d|a|so|dll|exe|class)$/;
+
+async function scanProject() {
+  // Intentar cargar tree.json generado, o scanear con la API
+  try {
+    const resp = await fetch('tree.json');
+    if (resp.ok) return await resp.json();
+  } catch(_) {}
+  // Fallback: construir desde los archivos listados
+  return [];
+}
+
+async function fetchFileList() {
+  // Generar lista de archivos desde el servidor
+  const base = window.location.pathname.replace(/\/[^/]*$/, '/') || '/';
+  const indices = [
+    'README.md', 'TODO.md', 'VERSION.txt', 'Makefile',
+    'mrf24_security/', 'mrf24_tx/', 'mrf24_rx/',
+    'scripts_tools/', 'flow/', 'mrf24-dashboard/'
+  ];
+  // Enumerar archivos via HEAD requests para verificar existencia
+  const files = [];
+  const checkFile = async (path) => {
+    try {
+      const r = await fetch(path, { method: 'HEAD' });
+      if (r.ok || r.status === 200) files.push({ path, name: path.split('/').pop(), dir: path.includes('/') ? path.substring(0, path.lastIndexOf('/')) : '.' });
+    } catch(_) {}
+  };
+  // Archivos raíz conocidos
+  const roots = ['README.md','TODO.md','VERSION.txt','prompt.txt','Makefile','.gitignore'];
+  for (const f of roots) await checkFile(f);
+  // Buscar subproyectos de forma recursiva (máx 2 niveles)
+  const subdirs = ['mrf24_security','mrf24_tx','mrf24_rx','scripts_tools','flow','mrf24-dashboard'];
+  for (const dir of subdirs) {
+    const knownFiles = {
+      'mrf24_security': ['main.cpp','Makefile','hal/gpio.cpp','hal/spi.cpp','hal/i2c.cpp','drivers/mrf24j40.cpp','drivers/ssd1306.cpp','drivers/st7789.cpp','drivers/qr.cpp','drivers/graphics_base.hpp','services/crypto.cpp','services/filesystem.cpp','services/timer.cpp','application/radio_manager.cpp','application/menu.cpp','security/aes.hpp','src/encrypt.cpp','src/decrypt.cpp'],
+      'mrf24_tx': ['Makefile','README.md','SKILL.md','TODO.md','src/main.cpp','src/config/config.cpp','src/spi/spi.cpp','src/radio/radio.cpp','src/mrf24/mrf24j40.cpp','include/radio/radio.hpp','include/spi/spi.hpp'],
+      'mrf24_rx': ['Makefile','README.md','SKILL.md','TODO.md','src/main.cpp','src/config/config.cpp','src/spi/spi.cpp','src/radio/radio.cpp','src/mrf24/mrf24j40.cpp','include/radio/radio.hpp','include/spi/spi.hpp'],
+      'scripts_tools': ['installBCM2835.sh','installMosquitto.sh','installLibs.sh','config_radio.sh','gpio.sh','dependeciesLibs.sh'],
+      'flow': ['diagram_comunication.dio','diagram_mrf24.dio','diagram_structs.dio'],
+      'mrf24-dashboard': ['index.html','style.css','script.js','gen_html.sh']
+    };
+    if (knownFiles[dir]) {
+      for (const f of knownFiles[dir]) {
+        files.push({ path: dir + '/' + f, name: f.split('/').pop(), dir: dir + (f.includes('/') ? '/' + f.substring(0, f.lastIndexOf('/')) : '') });
+      }
+    }
+  }
+  return files;
+}
+
+// ── Tree Builder ──
+function buildTree(files) {
+  const root = {};
+  for (const file of files) {
+    const parts = file.path.split('/');
+    let current = root;
+    for (let i = 0; i < parts.length; i++) {
+      if (i === parts.length - 1) {
+        if (!current._files) current._files = [];
+        current._files.push({ name: parts[i], path: file.path, ext: parts[i].includes('.') ? parts[i].split('.').pop().toLowerCase() : '' });
+      } else {
+        if (!current[parts[i]]) current[parts[i]] = {};
+        current = current[parts[i]];
+      }
+    }
+  }
+  return root;
+}
+
+function sortTree(node) {
+  const keys = Object.keys(node).filter(k => k !== '_files').sort((a,b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+  const result = {};
+  for (const k of keys) { result[k] = sortTree(node[k]); }
+  if (node._files) {
+    result._files = [...node._files].sort((a,b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+  }
+  return result;
+}
+
+function renderTree(node, path = '') {
+  let html = '<ul>';
+  const keys = Object.keys(node).filter(k => k !== '_files');
+  for (const key of keys) {
+    const subPath = path ? path + '/' + key : key;
+    const hasChildren = node[key] && (Object.keys(node[key]).length > 1 || node[key]._files);
+    html += `<li><span class="folder" data-path="${subPath}"> ${key}</span>`;
+    html += renderTree(node[key], subPath);
+    html += '</li>';
+  }
+  if (node._files) {
+    for (const file of node._files) {
+      const ext = file.ext;
+      const displayExt = ext || (file.name === 'Makefile' ? 'makefile' : 'txt');
+      html += `<li><span class="file" data-path="${file.path}" data-ext="${displayExt}"> ${file.name}</span></li>`;
+    }
+  }
+  html += '</ul>';
+  return html;
+}
+
+// ── Search ──
+function filterTree(query) {
+  const items = document.querySelectorAll('#tree-root .file, #tree-root .folder');
+  const q = query.toLowerCase().trim();
+  for (const item of items) {
+    const text = item.textContent.toLowerCase();
+    const path = item.dataset.path || '';
+    const match = !q || text.includes(q) || path.includes(q);
+    item.style.display = match ? '' : 'none';
+  }
+  // Show parent folders of matching items
+  if (q) {
+    document.querySelectorAll('#tree-root .folder').forEach(f => {
+      const parent = f.closest('li');
+      if (parent) {
+        const hasVisible = parent.querySelector('.file[style*=\"display\"]') === null;
+        f.style.display = '';
+      }
+    });
+  }
+}
+
+// ── Load File ──
+async function loadFile(path) {
+  const area = document.getElementById('content-area');
+  area.innerHTML = '<div class="loading"><div class="spinner"></div><span>Cargando...</span></div>';
+  try {
+    const resp = await fetch(path);
+    if (!resp.ok) throw new Error(`No se pudo cargar (${resp.status})`);
+    let content = await resp.text();
+    const ext = path.split('.').pop().toLowerCase();
+    const isMd = ['md','markdown'].includes(ext);
+    const isCode = ['cpp','hpp','h','c','cxx','cc','hh','java','js','ts','py','rb','go','rs','sh','bash','zsh','json','yml','yaml','xml','sql','css','scss','less'].includes(ext) || path.endsWith('Makefile');
+
+    // Highlight active file in tree
+    document.querySelectorAll('#tree-root .file.active').forEach(el => el.classList.remove('active'));
+    const activeEl = document.querySelector(`#tree-root .file[data-path="${path}"]`);
+    if (activeEl) activeEl.classList.add('active');
+
+    const fileName = path.split('/').pop();
+    const langMap = { cpp:'cpp', hpp:'cpp', h:'c', c:'c', js:'javascript', ts:'typescript', py:'python', rb:'ruby', go:'go', rs:'rust', sh:'bash', json:'json', yml:'yaml', yaml:'yaml', xml:'xml', css:'css', md:'markdown' };
+    const lang = isCode ? (langMap[ext] || ext) : '';
+
+    if (isMd) {
+      area.innerHTML = `
+        <div class="file-viewer-header">
+          <span class="path">📄 <span>${path}</span></span>
+          <span class="lang-badge">markdown</span>
+        </div>
+        <div class="markdown-body">${marked.parse(content)}</div>`;
+    } else if (isCode) {
+      const highlighted = hljs.highlight(content, { language: lang || 'plaintext' }).value;
+      area.innerHTML = `
+        <div class="file-viewer-header">
+          <span class="path">📜 <span>${path}</span></span>
+          <span class="lang-badge">${lang || ext}</span>
+        </div>
+        <div class="code-block-wrapper">
+          <div class="code-block-header">
+            <span class="dot red"></span><span class="dot amber"></span><span class="dot green"></span>
+            <span class="filename">${fileName}</span>
+          </div>
+          <div class="code-block-body">
+            <pre><code class="hljs">${highlighted}</code></pre>
+          </div>
+        </div>`;
+    } else {
+      area.innerHTML = `
+        <div class="file-viewer-header">
+          <span class="path">📄 <span>${path}</span></span>
+        </div>
+        <pre style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:1rem;font-family:'JetBrains Mono',monospace;font-size:0.8rem;overflow-x:auto;">${escapeHtml(content)}</pre>`;
+    }
+  } catch (err) {
+    area.innerHTML = `<div class="error-message"><div class="icon">⚠️</div><p>${err.message}</p></div>`;
+  }
+}
+
+function escapeHtml(text) {
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+// ── Real-time traffic chart ──
+let chartAnimId = null;
+let chartData = { packets: [], rssi: [], lqi: [], labels: [] };
+const MAX_POINTS = 60;
+
+let chartResizeObs = null;
+
+function resizeChartCanvas(canvas) {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  if (rect.width === 0) return;
+  canvas.width = rect.width * 2;
+  canvas.height = rect.height * 2;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+}
+
+function initTrafficChart() {
+  const canvas = document.getElementById('trafficCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  resizeChartCanvas(canvas);
+  
+  // ResizeObserver for responsive canvas
+  if (chartResizeObs) chartResizeObs.disconnect();
+  chartResizeObs = new ResizeObserver(() => resizeChartCanvas(canvas));
+  chartResizeObs.observe(canvas.parentElement);
+
+  // Seed data
+  for (let i = 0; i < 20; i++) {
+    chartData.packets.push(Math.random() * 40 + 10);
+    chartData.rssi.push(Math.random() * 20 - 85);
+    chartData.lqi.push(Math.random() * 40 + 160);
+    chartData.labels.push('');
+  }
+
+  function drawChart() {
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    // Background grid
+    ctx.strokeStyle = 'rgba(30,58,95,0.3)';
+    ctx.lineWidth = 1;
+    for (let y = 0; y < 4; y++) {
+      const yy = (y / 4) * h;
+      ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(w, yy); ctx.stroke();
+    }
+
+    // Add new data point
+    const t = Date.now() / 1000;
+    chartData.packets.push(Math.sin(t * 0.5) * 15 + 25 + Math.random() * 8);
+    chartData.rssi.push(Math.sin(t * 0.3 + 1) * 8 - 72 + Math.random() * 4);
+    chartData.lqi.push(Math.sin(t * 0.4 + 2) * 15 + 200 + Math.random() * 10);
+    chartData.labels.push('');
+    if (chartData.packets.length > MAX_POINTS) {
+      chartData.packets.shift();
+      chartData.rssi.shift();
+      chartData.lqi.shift();
+      chartData.labels.shift();
+    }
+
+    const len = chartData.packets.length;
+    const padL = 50, padR = 10, padT = 10, padB = 20;
+    const plotW = w - padL - padR;
+    const plotH = h - padT - padB;
+
+    function toX(i) { return padL + (i / (MAX_POINTS - 1)) * plotW; }
+
+    // Draw packets line
+    const pMin = 0, pMax = 60;
+    function toPY(v) { return padT + (1 - (v - pMin) / (pMax - pMin)) * plotH; }
+    ctx.beginPath();
+    ctx.strokeStyle = '#0ea5e9';
+    ctx.lineWidth = 2.5;
+    for (let i = 0; i < len; i++) {
+      const x = toX(i + (MAX_POINTS - len));
+      const y = toPY(chartData.packets[i]);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // Fill under packets
+    const lastX = toX((MAX_POINTS - 1));
+    const firstX = toX((MAX_POINTS - len));
+    ctx.lineTo(lastX, toPY(0));
+    ctx.lineTo(firstX, toPY(0));
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, padT, 0, padT + plotH);
+    grad.addColorStop(0, 'rgba(14,165,233,0.2)');
+    grad.addColorStop(1, 'rgba(14,165,233,0.01)');
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Draw RSSI line
+    const rMin = -95, rMax = -55;
+    function toRY(v) { return padT + (1 - (v - rMin) / (rMax - rMin)) * plotH; }
+    ctx.beginPath();
+    ctx.strokeStyle = '#22c55e';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    for (let i = 0; i < len; i++) {
+      const x = toX(i + (MAX_POINTS - len));
+      const y = toRY(chartData.rssi[i]);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Draw LQI line
+    const lMin = 100, lMax = 255;
+    function toLY(v) { return padT + (1 - (v - lMin) / (lMax - lMin)) * plotH; }
+    ctx.beginPath();
+    ctx.strokeStyle = '#a855f7';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([2, 3]);
+    for (let i = 0; i < len; i++) {
+      const x = toX(i + (MAX_POINTS - len));
+      const y = toLY(chartData.lqi[i]);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Y-axis labels (dynamic)
+    ctx.fillStyle = '#64748b';
+    ctx.font = '10px JetBrains Mono, monospace';
+    ctx.textAlign = 'right';
+    const yTicks = [0, 0.25, 0.5, 0.75, 1];
+    for (const tick of yTicks) {
+      const val = pMin + (pMax - pMin) * (1 - tick);
+      const yy = padT + tick * plotH;
+      ctx.fillText(val.toFixed(0), padL - 4, yy + 3);
+      // Grid line
+      ctx.strokeStyle = 'rgba(30,58,95,0.15)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(padL + plotW, yy); ctx.stroke();
+    }
+
+    // Update stats
+    const lastP = chartData.packets[chartData.packets.length - 1];
+    const lastR = chartData.rssi[chartData.rssi.length - 1];
+    const lastL = chartData.lqi[chartData.lqi.length - 1];
+    document.getElementById('chart-pkt').textContent = lastP.toFixed(1);
+    document.getElementById('chart-rssi').textContent = lastR.toFixed(1);
+    document.getElementById('chart-lqi').textContent = lastL.toFixed(0);
+
+    chartAnimId = requestAnimationFrame(drawChart);
+  }
+
+  drawChart();
+}
+
+// ── Dashboard Home ──
+function showDashboard() {
+  if (chartAnimId) { cancelAnimationFrame(chartAnimId); chartAnimId = null; }
+  const area = document.getElementById('content-area');
+  area.innerHTML = `
+  <div class="dashboard">
+    <div class="dashboard-header">
+      <div class="dash-animated-logo">
+        <svg width="120" height="100" viewBox="0 0 120 100">
+          <!-- Signal rings -->
+          <circle cx="35" cy="50" r="15" fill="none" stroke="#0ea5e9" stroke-width="1.5" opacity="0.3">
+            <animate attributeName="r" values="15;40;15" dur="2s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0.8;0;0.8" dur="2s" repeatCount="indefinite"/>
+          </circle>
+          <circle cx="35" cy="50" r="20" fill="none" stroke="#0ea5e9" stroke-width="1.5" opacity="0.2">
+            <animate attributeName="r" values="20;55;20" dur="2.5s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0.6;0;0.6" dur="2.5s" repeatCount="indefinite"/>
+          </circle>
+          <circle cx="35" cy="50" r="25" fill="none" stroke="#0ea5e9" stroke-width="1" opacity="0.15">
+            <animate attributeName="r" values="25;70;25" dur="3s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0.4;0;0.4" dur="3s" repeatCount="indefinite"/>
+          </circle>
+          <!-- ZigBee node -->
+          <circle cx="35" cy="50" r="10" fill="#0ea5e9" opacity="0.9"/>
+          <text x="35" y="50" text-anchor="middle" dominant-baseline="central" fill="#000" font-size="12" font-weight="bold">Z</text>
+          <!-- Antenna -->
+          <line x1="45" y1="40" x2="65" y2="20" stroke="#94a3b8" stroke-width="2"/>
+          <line x1="65" y1="20" x2="75" y2="10" stroke="#94a3b8" stroke-width="2"/>
+          <!-- Data dots flying -->
+          <circle r="2.5" fill="#22c55e" opacity="0.9">
+            <animateMotion dur="2s" repeatCount="indefinite" path="M50,55 C65,50 80,45 95,50"/>
+            <animate attributeName="opacity" values="0.9;0.3;0.9" dur="2s" repeatCount="indefinite"/>
+          </circle>
+          <circle r="2.5" fill="#22c55e" opacity="0.6">
+            <animateMotion dur="2s" repeatCount="indefinite" begin="0.7s" path="M50,55 C65,50 80,45 95,50"/>
+            <animate attributeName="opacity" values="0.6;0.2;0.6" dur="2s" repeatCount="indefinite"/>
+          </circle>
+          <circle r="2.5" fill="#22c55e" opacity="0.4">
+            <animateMotion dur="2s" repeatCount="indefinite" begin="1.4s" path="M50,55 C65,50 80,45 95,50"/>
+            <animate attributeName="opacity" values="0.4;0.1;0.4" dur="2s" repeatCount="indefinite"/>
+          </circle>
+          <!-- Receiving node -->
+          <circle cx="100" cy="50" r="12" fill="#22c55e" opacity="0.85"/>
+          <text x="100" y="50" text-anchor="middle" dominant-baseline="central" fill="#000" font-size="10" font-weight="bold">RX</text>
+          <!-- LQI/RSSI indicator -->
+          <rect x="82" y="64" width="36" height="16" rx="4" fill="#1a2332" stroke="#1e3a5f" stroke-width="0.5"/>
+          <text x="100" y="72" text-anchor="middle" fill="#22c55e" font-size="8" font-family="JetBrains Mono, monospace">LQI 210</text>
+        </svg>
+      </div>
+      <div class="dashboard-logo">◈ MRF24J40 ◈</div>
+      <h1>ZigBee IoT Dashboard</h1>
+      <p>Sistema de comunicación inalámbrica IEEE 802.15.4 para Raspberry Pi</p>
+      <div class="status-bar">
+        <span class="status-pill"><span class="status-led green status-blink"></span>Radio activa</span>
+        <span class="status-pill"><span class="status-led green"></span>Conexión SPI</span>
+        <span class="status-pill"><span class="status-led amber"></span>MQTT disponible</span>
+        <span class="status-pill"><span class="status-led purple"></span>AES-256 OK</span>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card accent">
+        <div class="stat-label">Subproyectos</div>
+        <div class="stat-value">3</div>
+        <div class="stat-sub">mrf24_security · mrf24_tx · mrf24_rx</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-label">Tecnologías</div>
+        <div class="stat-value">C++17</div>
+        <div class="stat-sub">BCM2835 · OpenSSL · MQTT</div>
+      </div>
+      <div class="stat-card amber">
+        <div class="stat-label">Displays</div>
+        <div class="stat-value">3</div>
+        <div class="stat-sub">OLED · TFT · E-Paper</div>
+      </div>
+      <div class="stat-card purple">
+        <div class="stat-label">Seguridad</div>
+        <div class="stat-value">AES-256</div>
+        <div class="stat-sub">CBC + SHA-256</div>
+      </div>
+    </div>
+
+    <!-- Traffic Chart -->
+    <div class="chart-container">
+      <h3>📊 Tráfico de red en tiempo real</h3>
+      <div class="chart-wrapper">
+        <canvas id="trafficCanvas"></canvas>
+      </div>
+      <div class="chart-legend">
+        <div class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--accent)"></span>Paquetes/s</div>
+        <div class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--green)"></span>RSSI (dBm)</div>
+        <div class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--purple)"></span>LQI</div>
+      </div>
+      <div class="chart-stats">
+        Paquetes: <span id="chart-pkt">0</span> &nbsp;|&nbsp; RSSI: <span id="chart-rssi">0</span> dBm &nbsp;|&nbsp; LQI: <span id="chart-lqi">0</span>
+      </div>
+    </div>
+
+    <!-- Architecture Diagram -->
+    <div class="arch-container">
+      <h3>🏗️ Arquitectura del sistema</h3>
+      <svg class="arch-svg" viewBox="0 0 720 260" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/>
+          </marker>
+          <linearGradient id="gpuBox" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#1a2332"/>
+            <stop offset="100%" stop-color="#111827"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Connections -->
+        <line x1="120" y1="80" x2="290" y2="80" class="arch-line" marker-end="url(#arrow)"/>
+        <line x1="400" y1="80" x2="400" y2="150" class="arch-line" marker-end="url(#arrow)"/>
+        <line x1="120" y1="150" x2="290" y2="150" class="arch-line" marker-end="url(#arrow)"/>
+        <line x1="400" y1="210" x2="580" y2="210" class="arch-line" marker-end="url(#arrow)"/>
+
+        <!-- Hardware Layer -->
+        <rect x="10" y="55" width="110" height="50" rx="8" fill="url(#gpuBox)" stroke="#1e3a5f" stroke-width="1.5" class="arch-box"/>
+        <text x="65" y="72" class="arch-label">MRF24J40MA</text>
+        <text x="65" y="86" class="arch-sub">IEEE 802.15.4</text>
+
+        <!-- SPI Layer -->
+        <rect x="290" y="55" width="110" height="50" rx="8" fill="url(#gpuBox)" stroke="#0ea5e9" stroke-width="1.5" class="arch-box"/>
+        <text x="345" y="72" class="arch-label" fill="#0ea5e9">SPI + GPIO</text>
+        <text x="345" y="86" class="arch-sub">BCM2835 / ioctl</text>
+
+        <!-- HAL Layer -->
+        <rect x="10" y="125" width="110" height="50" rx="8" fill="url(#gpuBox)" stroke="#22c55e" stroke-width="1.5" class="arch-box"/>
+        <text x="65" y="142" class="arch-label" fill="#22c55e">HAL</text>
+        <text x="65" y="156" class="arch-sub">gpio · spi · i2c</text>
+
+        <!-- Drivers Layer -->
+        <rect x="290" y="125" width="110" height="50" rx="8" fill="url(#gpuBox)" stroke="#f59e0b" stroke-width="1.5" class="arch-box"/>
+        <text x="345" y="142" class="arch-label" fill="#f59e0b">Drivers</text>
+        <text x="345" y="156" class="arch-sub">mrf24 · oled · tft · qr</text>
+
+        <!-- Services Layer -->
+        <rect x="10" y="185" width="110" height="50" rx="8" fill="url(#gpuBox)" stroke="#a855f7" stroke-width="1.5" class="arch-box"/>
+        <text x="65" y="202" class="arch-label" fill="#a855f7">Services</text>
+        <text x="65" y="216" class="arch-sub">crypto · fs · timer</text>
+
+        <!-- Application Layer -->
+        <rect x="580" y="185" width="130" height="50" rx="8" fill="url(#gpuBox)" stroke="#ef4444" stroke-width="1.5" class="arch-box"/>
+        <text x="645" y="202" class="arch-label" fill="#ef4444">Application</text>
+        <text x="645" y="216" class="arch-sub">radio_mgr · menu</text>
+
+        <!-- MQTT Bridge -->
+        <rect x="290" y="185" width="110" height="50" rx="8" fill="url(#gpuBox)" stroke="#ec4899" stroke-width="1.5" class="arch-box"/>
+        <text x="345" y="202" class="arch-label" fill="#ec4899">MQTT Bridge</text>
+        <text x="345" y="216" class="arch-sub">mosquitto</text>
+
+        <!-- Encryption badge -->
+        <rect x="580" y="55" width="130" height="50" rx="8" fill="url(#gpuBox)" stroke="#22c55e" stroke-width="1.5" class="arch-box arch-pulse"/>
+        <text x="645" y="72" class="arch-label" fill="#22c55e">AES-256-CBC</text>
+        <text x="645" y="86" class="arch-sub">+ SHA-256</text>
+
+        <!-- Flow dots -->
+        <circle r="3" fill="#0ea5e9" class="flow-dot">
+          <animateMotion dur="2s" repeatCount="indefinite" path="M125,80 L285,80"/>
+        </circle>
+        <circle r="3" fill="#22c55e" class="flow-dot">
+          <animateMotion dur="2.5s" repeatCount="indefinite" path="M400,85 L400,145"/>
+        </circle>
+        <circle r="3" fill="#a855f7" class="flow-dot">
+          <animateMotion dur="2s" repeatCount="indefinite" path="M125,150 L285,150"/>
+        </circle>
+        <circle r="3" fill="#ec4899" class="flow-dot">
+          <animateMotion dur="2.5s" repeatCount="indefinite" path="M405,210 L575,210"/>
+        </circle>
+
+        <!-- Labels -->
+        <text x="200" y="45" text-anchor="middle" fill="#64748b" font-size="10" font-family="Inter, sans-serif">Capa Física</text>
+        <text x="200" y="115" text-anchor="middle" fill="#64748b" font-size="10" font-family="Inter, sans-serif">Capa de Abstracción</text>
+        <text x="200" y="175" text-anchor="middle" fill="#64748b" font-size="10" font-family="Inter, sans-serif">Servicios</text>
+      </svg>
+    </div>
+
+    <div class="quick-actions">
+      <button class="quick-btn" onclick="loadFile('README.md')"><span class="icon">📖</span>README</button>
+      <button class="quick-btn" onclick="loadFile('TODO.md')"><span class="icon">📋</span> TODO</button>
+      <button class="quick-btn" onclick="loadFile('VERSION.txt')"><span class="icon">📌</span> Versión</button>
+      <button class="quick-btn" onclick="loadFile('prompt.txt')"><span class="icon">📝</span> Prompt</button>
+      <button class="quick-btn" onclick="loadFile('mrf24_security/main.cpp')"><span class="icon">🚀</span> Main</button>
+      <button class="quick-btn" onclick="loadFile('mrf24-dashboard/index.html')"><span class="icon">🎨</span> Dashboard</button>
+    </div>
+
+    <div class="project-info">
+      <h3>Información del proyecto</h3>
+      <div class="info-row"><span class="info-label">Versión</span><span class="info-value">v2.0.2</span></div>
+      <div class="info-row"><span class="info-label">Rama activa</span><span class="info-value tag">release/V3</span></div>
+      <div class="info-row"><span class="info-label">Protocolo</span><span class="info-value">IEEE 802.15.4 (ZigBee)</span></div>
+      <div class="info-row"><span class="info-label">Cifrado</span><span class="info-value">AES-256-CBC + SHA-256</span></div>
+      <div class="info-row"><span class="info-label">Plataforma</span><span class="info-value">Raspberry Pi (BCM2835)</span></div>
+      <div class="info-row"><span class="info-label">MQTT</span><span class="info-value">Mosquitto cliente/servidor</span></div>
+    </div>
+  </div>`;
+  // Init chart after DOM renders
+  requestAnimationFrame(() => requestAnimationFrame(initTrafficChart));
+}
+
+// ── Init ──
+async function init() {
+  const files = await fetchFileList();
+  const tree = sortTree(buildTree(files));
+  document.getElementById('tree-root').innerHTML = renderTree(tree);
+  document.getElementById('fileCount').textContent = `${files.length} archivos indexados`;
+
+  // Click handlers
+  document.addEventListener('click', function(e) {
+    const target = e.target.closest('.file, .folder');
+    if (!target) return;
+    const path = target.dataset.path;
+    if (target.classList.contains('file')) {
+      loadFile(path);
+    } else if (target.classList.contains('folder')) {
+      target.classList.toggle('open');
+      const ul = target.nextElementSibling;
+      if (ul && ul.tagName === 'UL') {
+        ul.style.display = ul.style.display === 'none' ? '' : 'none';
+      }
+    }
+  });
+
+  // Search
+  document.getElementById('searchInput').addEventListener('input', function() {
+    filterTree(this.value);
+  });
+
+  // Toggle sidebar
+  document.getElementById('toggleSidebar').addEventListener('click', function() {
+    document.getElementById('sidebar').classList.toggle('collapsed');
+    this.textContent = document.getElementById('sidebar').classList.contains('collapsed') ? '▶' : '◀';
+  });
+
+  // Show dashboard
+  showDashboard();
+}
+
+init();
+</script>
+</body>
+</html>
