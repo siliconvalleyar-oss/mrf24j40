@@ -123,7 +123,6 @@ SRCS := \
     $(SRC_DIR)/oled/oled/SSD1306_OLED_Print.cpp \
     $(SRC_DIR)/oled/oled/SSD1306_OLED_font.cpp \
     $(SRC_DIR)/oled/oled/oled.cpp \
-    $(SRC_DIR)/fonts/font5x7.cpp \
     $(SRC_DIR)/mosquitto/mqtt_handler.cpp \
     $(SRC_DIR)/mosquitto/mqtt_bridge.cpp
 

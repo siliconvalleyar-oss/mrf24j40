@@ -12,7 +12,7 @@
  * @date 2026
  */
 
-#include <oled/oled.hpp>
+#include <oled/SSD1306_OLED.hpp>
 #include <config/config.hpp>
 
 #include <bcm2835.h>
