@@ -488,7 +488,7 @@ std::array<uint8_t, 8> RadioManager_t::uint64ToMac(uint64_t addr) {
 
 std::string RadioManager_t::macToHex(uint64_t addr) {
     auto arr = uint64ToMac(addr);
-    return services::Crypto_t::toHex({arr.begin(), arr.end()});
+    return services::Crypto_t::toHex(std::vector<uint8_t>(arr.begin(), arr.end()));
 }
 
 uint64_t RadioManager_t::localMac64() const {
@@ -635,8 +635,7 @@ void RadioManager_t::process() {
                     m_message_ready = true;
 
                     // Callback
-                    std::string sender_str = "0x" + services::Crypto_t::toHex(
-                        uint64ToMac(validation.src_mac));
+                    std::string sender_str = "0x" + macToHex(validation.src_mac);
 
                     if (m_msg_callback) {
                         m_msg_callback(sender_str, m_last_message,
