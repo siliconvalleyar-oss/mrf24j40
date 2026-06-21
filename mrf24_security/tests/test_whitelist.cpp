@@ -289,7 +289,7 @@ void test_addAllowedSource() {
 
     application::RadioManager_t mgr;
 
-    mgr.addAllowedSource(0x000000000000000AUIL);
+    mgr.addAllowedSource(0x000000000000000AULL);
     mgr.addAllowedSource(0x000000000000000BULL);
     mgr.addAllowedSource(0x000000000000000CULL);
 
