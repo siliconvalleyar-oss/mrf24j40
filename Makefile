@@ -78,7 +78,7 @@ endif
 
 # --- Targets ---
 
-.PHONY: all clean info help docs
+.PHONY: all clean clean-docs info help docs docs-html docs-init
 
 all: $(TARGET)
 
@@ -141,8 +141,31 @@ docs:
 	@echo "=========================================="
 	@echo "  ✅ Documentación generada en docs/doxygen/"
 	@echo "  📄 HTML: docs/doxygen/html/index.html"
-	@echo "  📄 PDF:  docs/doxygen/latex/refman.pdf"
+	@if command -v pdflatex >/dev/null 2>&1; then \
+		echo "  📄 PDF:  docs/doxygen/latex/refman.pdf"; \
+	else \
+		echo "  ⚠  PDF no generado (pdflatex no instalado)."; \
+		echo "     Para incluír PDF: sudo apt-get install texlive-latex-base"; \
+	fi
 	@echo "=========================================="
+
+# Documentación solo HTML (más rápida, sin pdflatex)
+docs-html:
+	@command -v doxygen >/dev/null 2>&1 || { \
+		echo "❌ doxygen no está instalado."; \
+		echo "    Instalálo con: sudo apt-get install doxygen graphviz"; \
+		exit 1; \
+	}
+	@sed -i 's/^GENERATE_LATEX.*= YES/GENERATE_LATEX = NO/' Doxyfile
+	doxygen Doxyfile
+	@echo ""
+	@echo "✅ Documentación HTML generada en docs/doxygen/html/"
+
+# Regenerar Doxyfile por defecto
+docs-init:
+	@echo "Regenerando Doxyfile..."
+	@doxygen -g Doxyfile 2>/dev/null
+	@echo "✅ Doxyfile regenerado. Personalizá las opciones según el proyecto."
 
 # Ayuda
 help:
@@ -150,7 +173,9 @@ help:
 	@echo ""
 	@echo "Targets:"
 	@echo "  all        Compila el sistema completo (default)"
-	@echo "  docs       Genera documentación Doxygen"
+	@echo "  docs       Genera doc. Doxygen (HTML + PDF si pdflatex instalado)"
+	@echo "  docs-html  Genera solo HTML (más rápido, sin pdflatex)"
+	@echo "  docs-init  Regenera archivo Doxyfile por defecto"
 	@echo "  info       Muestra información de compilación"
 	@echo "  clean      Limpia archivos objeto y binarios"
 	@echo "  clean-docs Limpia documentación generada"

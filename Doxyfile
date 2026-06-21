@@ -76,11 +76,6 @@ DISTRIBUTE_GROUP_DOC   = YES
 TAB_SIZE               = 4
 ALIASES                =
 
-# --- Grafo de dependencias ---
-DOT_GRAPH_MAX_NODES    = 100
-MAX_DOT_GRAPH_DEPTH    = 1000
-DOT_TRANSPARENT        = YES
-
 # --- Preprocesador ---
 ENABLE_PREPROCESSING   = YES
 MACRO_EXPANSION        = YES
